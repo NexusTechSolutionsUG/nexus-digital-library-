@@ -1,21 +1,18 @@
 package com.example.ui
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,69 +20,330 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import coil.compose.SubcomposeAsyncImage
-import com.example.data.*
-import com.example.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.Announcement
+import com.example.data.Book
+import com.example.data.BorrowRecord
+import com.example.data.DigitalMaterial
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun LibraryDashboard(viewModel: LibraryViewModel) {
-    var selectedTab by remember { mutableStateOf(0) }
-    val studentName by viewModel.studentName.collectAsState()
-    val readingStreak by viewModel.readingStreak.collectAsState()
+    val screen by viewModel.currentScreen.collectAsStateWithLifecycle()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        AnimatedContent(
+            targetState = screen,
+            transitionSpec = {
+                fadeIn() with fadeOut()
+            },
+            label = "screen_transition"
+        ) { targetScreen ->
+            when (targetScreen) {
+                Screen.LOGIN -> LoginScreen(viewModel)
+                Screen.DASHBOARD -> StudentDashboard(viewModel)
+                Screen.BOOK_DETAILS -> BookDetailsScreen(viewModel)
+                Screen.DIGITAL_READER -> DigitalReaderScreen(viewModel)
+                Screen.QR_PASSPORT -> QrPassportScreen(viewModel)
+                Screen.NOTIFICATIONS -> NotificationsScreen(viewModel)
+                Screen.AI_STUDY -> AiStudyCoachScreen(viewModel)
+                Screen.ADMIN_DASHBOARD -> AdminDashboard(viewModel)
+                else -> LoginScreen(viewModel)
+            }
+        }
+    }
+}
+
+// --- LOGIN SCREEN ---
+@Composable
+fun LoginScreen(viewModel: LibraryViewModel) {
+    var selectedRole by remember { mutableStateOf("STUDENT") } // STUDENT, LIBRARIAN
+    var idInput by remember { mutableStateOf("") }
+    var passwordInput by remember { mutableStateOf("") }
+    var resultMessage by remember { mutableStateOf("") }
+    var isRegistering by remember { mutableStateOf(false) }
+
+    // Register details
+    var regName by remember { mutableStateOf("") }
+    var regClass by remember { mutableStateOf("Grade 11") }
+
+    LaunchedEffect(selectedRole) {
+        // Pre-populate standard credentials for easy demo evaluation
+        if (selectedRole == "STUDENT") {
+            idInput = "student1"
+            passwordInput = "123456"
+        } else {
+            idInput = "admin"
+            passwordInput = "123456"
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+            .statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Logo representation
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.MenuBook,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "OAKRIDGE HIGH",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
+
+        Text(
+            text = "Digital Library Portal",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Role Card Selection Tabs
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            listOf("STUDENT" to "Student Access", "LIBRARIAN" to "Librarian Admin").forEach { (role, label) ->
+                val isSelected = selectedRole == role
+                Button(
+                    onClick = { selectedRole = role },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("role_${role.lowercase()}"),
+                    shape = RoundedCornerShape(10.dp),
+                    elevation = null,
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Text(text = label, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Dynamic Form Header
+        Text(
+            text = if (isRegistering) "Create Student Account" else "Sign In to Continue",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.align(Alignment.Start)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Index / Reference ID Input
+        OutlinedTextField(
+            value = idInput,
+            onValueChange = { idInput = it },
+            label = { Text("Reference ID / Index Code") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("id_input"),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        if (isRegistering) {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = regName,
+                onValueChange = { regName = it },
+                label = { Text("Full Name") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("name_input"),
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                shape = RoundedCornerShape(14.dp)
+            )
+
+            if (selectedRole == "STUDENT") {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = regClass,
+                    onValueChange = { regClass = it },
+                    label = { Text("Class Group") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("class_input"),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.School, contentDescription = null) },
+                    shape = RoundedCornerShape(14.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Password Input
+        OutlinedTextField(
+            value = passwordInput,
+            onValueChange = { passwordInput = it },
+            label = { Text("App Code / Pin") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("password_input"),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        if (resultMessage.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = resultMessage,
+                color = if (resultMessage.contains("successful", ignoreCase = true) || resultMessage.contains("complete", ignoreCase = true)) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Main action Button
+        Button(
+            onClick = {
+                if (isRegistering) {
+                    viewModel.register(idInput, regName, regClass, selectedRole, passwordInput) { success, msg ->
+                        resultMessage = msg
+                    }
+                } else {
+                    viewModel.login(idInput, passwordInput) { success, msg ->
+                        resultMessage = msg
+                    }
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .testTag("login_button"),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text(
+                text = if (isRegistering) "Register & Log In" else "Sign In",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Switch Action
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isRegistering) "Already registered?" else "First time using portal?",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp
+            )
+            TextButton(
+                onClick = {
+                    isRegistering = !isRegistering
+                    resultMessage = ""
+                },
+                modifier = Modifier.testTag("switch_action")
+            ) {
+                Text(
+                    text = if (isRegistering) "Sign In" else "Create Account",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 13.sp
+                )
+            }
+        }
+    }
+}
+
+// --- STUDENT HOME DASHBOARD ---
+@Composable
+fun StudentDashboard(viewModel: LibraryViewModel) {
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val notifications by viewModel.sysNotifications.collectAsStateWithLifecycle()
+
+    var activeTab by remember { mutableStateOf(0) } // 0 = Home, 1 = Catalog, 2 = My Shelf
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(
-                modifier = Modifier
-                    .shadow(8.dp)
-                    .testTag("bottom_nav_bar"),
-                containerColor = MaterialTheme.colorScheme.background,
+                containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
-                    icon = { Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Catalog") },
-                    label = { Text("Catalog", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    modifier = Modifier.testTag("tab_catalog")
+                    selected = activeTab == 0,
+                    onClick = { activeTab = 0 },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home", fontWeight = FontWeight.Bold) }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.AutoStories, contentDescription = "My Books") },
-                    label = { Text("My Books", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    modifier = Modifier.testTag("tab_my_books")
+                    selected = activeTab == 1,
+                    onClick = { activeTab = 1 },
+                    icon = { Icon(Icons.Default.LibraryBooks, contentDescription = "Catalog") },
+                    label = { Text("Catalog", fontWeight = FontWeight.Bold) }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Campaign, contentDescription = "News") },
-                    label = { Text("News", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    modifier = Modifier.testTag("tab_news")
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.ContactMail, contentDescription = "Profile") },
-                    label = { Text("ID Card", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    modifier = Modifier.testTag("tab_profile")
+                    selected = activeTab == 2,
+                    onClick = { activeTab = 2 },
+                    icon = { Icon(Icons.Default.Bookmarks, contentDescription = "Shelf") },
+                    label = { Text("Library Shelf", fontWeight = FontWeight.Bold) }
                 )
             }
         }
@@ -94,1506 +352,1504 @@ fun LibraryDashboard(viewModel: LibraryViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
         ) {
-            // High School Header Row
-            SchoolHeaderPanel(studentName, readingStreak)
+            // Header panel always visible
+            StudentHeaderPanel(
+                studentName = currentUser?.name ?: "Student",
+                streakValue = currentUser?.streak ?: 1,
+                onLogout = { viewModel.logout() },
+                onNotifications = { viewModel.navigateTo(Screen.NOTIFICATIONS) }
+            )
 
-            // Dynamic view based on tab index
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (selectedTab) {
-                    0 -> CatalogTab(viewModel)
-                    1 -> MyBooksTab(viewModel)
-                    2 -> CampusNewsTab(viewModel)
-                    3 -> StudentCardTab(viewModel)
-                }
+            // Dynamic Tab Views
+            when (activeTab) {
+                0 -> StudentHomeTab(viewModel)
+                1 -> StudentCatalogTab(viewModel)
+                2 -> StudentShelfTab(viewModel)
             }
         }
     }
 }
 
 @Composable
-fun SchoolHeaderPanel(studentName: String, streak: Int) {
-    val initials = remember(studentName) {
-        studentName.trim().split("\\s+".toRegex())
-            .mapNotNull { it.firstOrNull() }
-            .take(2)
-            .joinToString("")
-            .uppercase()
-            .ifEmpty { "OH" }
+fun StudentHeaderPanel(studentName: String, streakValue: Int, onLogout: () -> Unit, onNotifications: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Circle avatar representation
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = studentName.firstOrNull()?.toString()?.uppercase() ?: "S",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Column {
+                Text(
+                    text = "Oakridge Central Library",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = studentName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Streak counter badge
+            IconButton(
+                onClick = {},
+                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).size(36.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocalFireDepartment,
+                        contentDescription = "Streak",
+                        tint = Color(0xFFFBBF24),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = streakValue.toString(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            // Notifications
+            IconButton(
+                onClick = onNotifications,
+                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).size(36.dp)
+            ) {
+                Icon(Icons.Default.Notifications, contentDescription = "Alerts", modifier = Modifier.size(18.dp))
+            }
+
+            // Log out
+            IconButton(
+                onClick = onLogout,
+                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).size(36.dp)
+            ) {
+                Icon(Icons.Default.ExitToApp, contentDescription = "Log out", modifier = Modifier.size(18.dp))
+            }
+        }
     }
+}
+
+// HOME TAB (Student view)
+@Composable
+fun StudentHomeTab(viewModel: LibraryViewModel) {
+    val announcements by viewModel.allAnnouncements.collectAsStateWithLifecycle()
+    val digitalMaterials by viewModel.allDigitalMaterials.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        // Welcome Bulletin Block
+        Card(
+            modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+
+                Column {
+                    Text(
+                        text = "Need Study Help?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Ask our Library AI Tutor questions about Physics, Biology, or Literature books instantly.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.navigateTo(Screen.AI_STUDY) },
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        modifier = Modifier.height(32.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Connect AI Tutor", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Quick Utilities Rows
+        Text("Library Utilities", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Passport Reader Card
+            ElevatedCard(
+                onClick = { viewModel.navigateTo(Screen.QR_PASSPORT) },
+                modifier = Modifier.weight(1f).height(100.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Icon(Icons.Default.QrCode, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text("My Scan ID", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Passport QR", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            // AI Hub Card
+            ElevatedCard(
+                onClick = { viewModel.navigateTo(Screen.AI_STUDY) },
+                modifier = Modifier.weight(1f).height(100.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Icon(Icons.Default.Psychology, contentDescription = null, tint = Color(0xFFFBBF24))
+                    Text("AI Coach", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Syllabus Assist", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        // E-Challenge Reading Area
+        Text("Digital Reading Material", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(digitalMaterials) { material ->
+                Card(
+                    modifier = Modifier
+                        .width(180.dp)
+                        .clickable { viewModel.selectMaterial(material) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                            Text(
+                                text = material.type.uppercase(),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = material.title,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = material.category,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.MenuBook, contentDescription = null, size = 12.dp, tint = MaterialTheme.colorScheme.primary)
+                            Text("Open in Reader", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bulletins
+        Text("Pinned Bulletins", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+        announcements.forEach { ann ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (ann.isPinned) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (ann.isPinned) {
+                                Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                            }
+                            Text(text = ann.title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                        Text(text = ann.timestamp, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = ann.content, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+// CATALOG TAB
+@Composable
+fun StudentCatalogTab(viewModel: LibraryViewModel) {
+    val books by viewModel.filteredBooks.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val subjectFilter by viewModel.selectedSubject.collectAsStateWithLifecycle()
+    val availabilityFilter by viewModel.selectedAvailability.collectAsStateWithLifecycle()
+
+    val subjects = listOf("All", "Literature", "Mathematics", "Physics", "Chemistry", "Biology")
+    val availabilities = listOf("All", "Available", "Checked Out")
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Search bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.searchQuery.value = it },
+            placeholder = { Text("Search catalog title or author...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("search_input"),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        // Subject Badges horizontal scroll
+        Text("Filter by Domain", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(subjects) { subject ->
+                val isSelected = subjectFilter == subject
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { viewModel.selectedSubject.value = subject },
+                    label = { Text(subject, fontSize = 12.sp) }
+                )
+            }
+        }
+
+        // Availability filter chips
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(availabilities) { av ->
+                val isSelected = availabilityFilter == av
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { viewModel.selectedAvailability.value = av },
+                    label = { Text(av, fontSize = 12.sp) }
+                )
+            }
+        }
+
+        // Results Catalog Grid
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Circular Avatar
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initials,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
+            Text("Catalog Books (${books.size})", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
 
-                Column {
-                    Text(
-                        text = "Oakridge High Library",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Welcome back, $studentName",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
-
-            // Streak icon button container
+        if (books.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocalFireDepartment,
-                    contentDescription = "Streak",
-                    tint = AcademicGold,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Styled Card following the mockup
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 36.dp, height = 48.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    )
-                                )
-                            )
-                    )
-                    Column {
-                        Text(
-                            text = "OFFICIAL RECORD",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "Achieved $streak-Day Streak",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "STUDENT PASS",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.LibraryBooks, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                    Text("No matching books found", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Try adjusting search keywords or target subject.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                 }
             }
-        }
-    }
-}
-
-// ==========================================
-// TAB 1: CATALOG
-// ==========================================
-
-@Composable
-fun CatalogTab(viewModel: LibraryViewModel) {
-    val books by viewModel.books.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val selectedCategory by viewModel.selectedCategory.collectAsState()
-    val selectedBookId by viewModel.selectedBookId.collectAsState()
-
-    val categories = listOf("All", "Literature", "Science & Tech", "Fiction", "History", "Self-Growth")
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Search & Filter Block
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Styled Search Text Field
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("catalog_search_input"),
-                placeholder = { Text("Search title, author, description...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "SearchIcon") },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = { viewModel.updateSearchQuery("") },
-                            modifier = Modifier.testTag("clear_search_button")
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
-                        }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
-                )
-            )
-
-            // Category Chips Row
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(categories) { category ->
-                    val isSelected = selectedCategory == category
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.selectCategory(category) },
-                        label = { Text(category, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.testTag("category_chip_$category"),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            selected = isSelected,
-                            enabled = true
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-            }
-        }
-
-        // Books Grid / List container
-        if (books.isEmpty()) {
-            EmptyCatalogState()
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(books, key = { it.id }) { book ->
-                    BookListItem(
-                        book = book,
-                        onSelect = { viewModel.selectBook(book.id) },
-                        onToggleFavorite = { viewModel.toggleFavorite(book.id, !book.isFavorite) }
-                    )
-                }
-            }
-        }
-    }
+                items(books) { book ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.selectBook(book) }
+                            .testTag("book_item_${book.id}"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Custom painted book spine aesthetic
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 44.dp, height = 64.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(android.graphics.Color.parseColor(book.coverColorHex))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Book, contentDescription = null, tint = Color.Black.copy(alpha = 0.3f))
+                            }
 
-    // Detail Popover / Full sheet
-    if (selectedBookId != null) {
-        BookDetailDialog(viewModel = viewModel)
-    }
-}
+                            Column(modifier = Modifier.weight(1f)) {
+                                Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                    Text(
+                                        text = book.category,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                                Text(
+                                    text = book.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = book.author,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
 
-@Composable
-fun BookListItem(
-    book: Book,
-    onSelect: () -> Unit,
-    onToggleFavorite: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("book_item_card_${book.id}")
-            .shadow(2.dp, RoundedCornerShape(16.dp))
-            .clickable { onSelect() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            // Book Cover Image or Grad Placeholder
-            BookCoverThumbnail(book = book, modifier = Modifier.size(width = 80.dp, height = 115.dp))
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Info column
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(115.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    // Category Chip Left
-                    CategoryBadge(category = book.category)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = book.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "by ${book.author}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                // Row with stats and status badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Academic Stars rating
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Rating",
-                            tint = AcademicGold,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = String.format(Locale.getDefault(), "%.1f", book.rating),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                            Column(horizontalAlignment = Alignment.End) {
+                                if (book.available > 0) {
+                                    Text("Available", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("${book.available} cap.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else {
+                                    Text("Loans Out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
                     }
-
-                    // Available count indicator
-                    AvailableBadge(copiesLeft = book.availableCopies)
                 }
-            }
-
-            // Book Favorite button
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier
-                    .align(Alignment.Top)
-                    .testTag("favorite_button_${book.id}")
-            ) {
-                Icon(
-                    imageVector = if (book.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "Favorite Book",
-                    tint = if (book.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
             }
         }
     }
 }
 
+// MY SHELF TAB
 @Composable
-fun BookCoverThumbnail(book: Book, modifier: Modifier = Modifier) {
-    val gradColors = when (book.category) {
-        "Literature" -> listOf(ScholasticNavy, NavySlatePrimary)
-        "Science & Tech" -> listOf(Color(0xFF0F766E), Color(0xFF14B8A6))
-        "Fiction" -> listOf(Color(0xFF991B1B), Color(0xFFEF4444))
-        "History" -> listOf(Color(0xFF78350F), Color(0xFFD97706))
-        else -> listOf(Color(0xFF581C87), Color(0xFFA855F7)) // Self-Growth and default
-    }
+fun StudentShelfTab(viewModel: LibraryViewModel) {
+    val studentRecords by viewModel.studentBorrowRecords.collectAsStateWithLifecycle()
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Brush.verticalGradient(gradColors))
-    ) {
-        SubcomposeAsyncImage(
-            model = book.coverUrl,
-            contentDescription = "Cover for ${book.title}",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            error = {
-                // Customized Fallback Cover Design overlay
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(4.dp),
-                    verticalArrangement = Arrangement.SpaceBetween,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = book.category.uppercase(Locale.getDefault()),
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White.copy(alpha = 0.8f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = book.title,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 10.sp
-                    )
-                    Icon(
-                        imageVector = Icons.Default.MenuBook,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
-        )
-    }
-}
-
-private val NavySlatePrimary = Color(0xFF1E293B)
-
-@Composable
-fun CategoryBadge(category: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                color = when (category) {
-                    "Literature" -> ScholasticNavy.copy(alpha = 0.12f)
-                    "Science & Tech" -> Color(0xFF0F766E).copy(alpha = 0.12f)
-                    "Fiction" -> Color(0xFF991B1B).copy(alpha = 0.11f)
-                    "History" -> Color(0xFF78350F).copy(alpha = 0.12f)
-                    else -> Color(0xFF581C87).copy(alpha = 0.12f)
-                },
-                shape = RoundedCornerShape(6.dp)
-            )
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = category,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = when (category) {
-                "Literature" -> ScholasticNavy
-                "Science & Tech" -> Color(0xFF0F766E)
-                "Fiction" -> Color(0xFF991B1B)
-                "History" -> Color(0xFF78350F)
-                else -> Color(0xFF581C87)
-            }
-        )
-    }
-}
-
-@Composable
-fun AvailableBadge(copiesLeft: Int) {
-    val isAvailable = copiesLeft > 0
-    val bagColor = if (isAvailable) Color(0xFFD1FAE5) else Color(0xFFFEE2E2)
-    val txtColor = if (isAvailable) Color(0xFF065F46) else Color(0xFF991B1B)
-
-    Box(
-        modifier = Modifier
-            .background(color = bagColor, shape = RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-    ) {
-        Text(
-            text = if (isAvailable) "Available ($copiesLeft)" else "Borrowed Out",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = txtColor
-        )
-    }
-}
-
-@Composable
-fun EmptyCatalogState() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.FilterList,
-            contentDescription = "Empty Filters",
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "No Books Match Filter",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Try clearing search keywords or selecting 'All' category.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            textAlign = TextAlign.Center
-        )
-    }
-}
+        Text("My Borrowed Books Shelf", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+        Text("Your live circulation physical and reference logs.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-// ==========================================
-// POPUP: BOOK DETAILS & REVIEW
-// ==========================================
+        if (studentRecords.isEmpty()) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, size = 48.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                    Text("Your shelf is empty", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Select a book from catalog to request a loan.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(studentRecords) { record ->
+                    val isPending = record.status == "PENDING"
+                    val isApproved = record.status == "APPROVED"
+                    val isOverdue = record.status == "OVERDUE"
+                    val isReturned = record.status == "RETURNED"
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BookDetailDialog(viewModel: LibraryViewModel) {
-    val book by viewModel.selectedBook.collectAsState()
-    val reviews by viewModel.selectedBookReviews.collectAsState()
-    val activeBorrowRecords by viewModel.activeBorrowRecords.collectAsState()
-    val studentName by viewModel.studentName.collectAsState()
-
-    if (book == null) return
-
-    val currentBook = book!!
-    val isAlreadyBorrowed = activeBorrowRecords.any { it.bookId == currentBook.id }
-
-    var showReviewDraft by remember { mutableStateOf(false) }
-    var reviewText by remember { mutableStateOf("") }
-    var reviewRating by remember { mutableStateOf(5) }
-
-    Dialog(
-        onDismissRequest = { viewModel.selectBook(null) },
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { Text("Book Specifications", fontWeight = FontWeight.Black) },
-                        navigationIcon = {
-                            IconButton(onClick = { viewModel.selectBook(null) }) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = when {
+                                isOverdue -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                                isPending -> MaterialTheme.colorScheme.surfaceVariant
+                                else -> MaterialTheme.colorScheme.surface
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            when {
+                                isOverdue -> MaterialTheme.colorScheme.error
+                                isPending -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            }
                         )
-                    )
-                },
-                bottomBar = {
-                    Surface(
-                        tonalElevation = 8.dp,
-                        modifier = Modifier.shadow(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (isAlreadyBorrowed) {
-                                Button(
-                                    onClick = { },
-                                    enabled = false,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(48.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                    )
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = record.bookTitle, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Badge(
+                                    containerColor = when {
+                                        isOverdue -> MaterialTheme.colorScheme.error
+                                        isPending -> MaterialTheme.colorScheme.secondaryContainer
+                                        isReturned -> MaterialTheme.colorScheme.surfaceVariant
+                                        else -> MaterialTheme.colorScheme.primary
+                                    }
                                 ) {
-                                    Icon(Icons.Default.Check, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Currently Borrowed")
-                                }
-                            } else {
-                                Button(
-                                    onClick = {
-                                        viewModel.borrowSelectedBook(
-                                            book = currentBook,
-                                            onSuccess = {
-                                                viewModel.selectBook(null)
-                                            },
-                                            onError = { errMsg -> }
-                                        )
-                                    },
-                                    enabled = currentBook.availableCopies > 0,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(48.dp)
-                                        .testTag("borrow_button_trigger"),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary
-                                    )
-                                ) {
-                                    Icon(Icons.Default.BookmarkAdd, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = if (currentBook.availableCopies > 0) "Borrow Virtually (14 days)" else "No Copies Available",
+                                        text = record.status,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
-                            FilledTonalIconButton(
-                                onClick = { showReviewDraft = true },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .testTag("open_review_editor_button")
-                            ) {
-                                Icon(Icons.Default.RateReview, contentDescription = "Review book")
-                            }
-                        }
-                    }
-                }
-            ) { paddingValues ->
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 32.dp)
-                ) {
-                    // Header Segment
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 12.dp)
-                        ) {
-                            BookCoverThumbnail(
-                                book = currentBook,
-                                modifier = Modifier
-                                    .size(width = 110.dp, height = 160.dp)
-                                    .shadow(4.dp, RoundedCornerShape(12.dp))
-                            )
-                            Spacer(modifier = Modifier.width(20.dp))
-                            Column {
-                                CategoryBadge(category = currentBook.category)
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = currentBook.title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                Text(
-                                    text = "by ${currentBook.author}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text(
-                                    text = "Published: ${currentBook.publishedYear}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                ) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = AcademicGold, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = String.format(Locale.getDefault(), "%.1f Stars", currentBook.rating),
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                }
-                            }
-                        }
-                    }
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                    // Description Segment
-                    item {
-                        Column {
-                            Text(
-                                text = "LITERARY SYNOPSIS",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 1.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = currentBook.description,
-                                style = MaterialTheme.typography.bodyLarge,
-                                lineHeight = 24.sp,
-                                textAlign = TextAlign.Justify,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-                            )
-                        }
-                    }
-
-                    // Educational Checklist Banner
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                        ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = AcademicGold, modifier = Modifier.size(24.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text("Reader Task Goal", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text("Log reviews, adjust progress slider, and achieve 100% reading to build academic stars!", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                    Text("Borrowed", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(record.borrowDate, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Deadline Return", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = record.returnDate,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
                             }
-                        }
-                    }
-
-                    // Reviews Segment Header
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "STUDENT CLASSROOM REVIEWS",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 1.5.sp
-                            )
-
-                            Text(
-                                text = "${reviews.size} reviews",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
-
-                    // Reviews list items
-                    if (reviews.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 12.dp)
-                                    .border(
-                                        1.dp,
-                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No reviews yet. Be the first Oakridge student to write one!",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    } else {
-                        items(reviews) { review ->
-                            StudentReviewItem(review)
                         }
                     }
                 }
-            }
-
-            // Write review dialog popover
-            if (showReviewDraft) {
-                AlertDialog(
-                    onDismissRequest = { showReviewDraft = false },
-                    title = { Text("Draft Book Review", fontWeight = FontWeight.Bold) },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                            Text("Authoring book review as student: $studentName", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                            
-                            // Stars selector row
-                            Column {
-                                Text("Your Rating:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Row(
-                                    modifier = Modifier.padding(top = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    for (i in 1..5) {
-                                        Icon(
-                                            imageVector = if (i <= reviewRating) Icons.Default.Star else Icons.Outlined.Star,
-                                            contentDescription = "$i Stars",
-                                            tint = if (i <= reviewRating) AcademicGold else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .clickable { reviewRating = i }
-                                                .testTag("star_picker_$i")
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Review textbox
-                            OutlinedTextField(
-                                value = reviewText,
-                                onValueChange = { reviewText = it },
-                                placeholder = { Text("What did you think of the characters, arguments, complexity, or lesson?") },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp)
-                                    .testTag("review_text_input"),
-                                maxLines = 4,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                if (reviewText.isNotBlank()) {
-                                    viewModel.addStudentReview(
-                                        bookId = currentBook.id,
-                                        rating = reviewRating,
-                                        reviewText = reviewText
-                                    )
-                                    reviewText = ""
-                                    reviewRating = 5
-                                    showReviewDraft = false
-                                }
-                            },
-                            modifier = Modifier.testTag("submit_review_save_button")
-                        ) {
-                            Text("Publish Review", fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showReviewDraft = false }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
             }
         }
     }
 }
 
+// --- BOOK DETAILS SCREEN ---
 @Composable
-fun StudentReviewItem(review: BookReview) {
-    val formatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
-    val formattedDate = formatter.format(Date(review.timestamp))
+fun BookDetailsScreen(viewModel: LibraryViewModel) {
+    val book by viewModel.selectedBook.collectAsStateWithLifecycle()
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+    book?.let { b ->
+        val bookColor = Color(android.graphics.Color.parseColor(b.coverColorHex))
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+        ) {
+            // Header Action
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = review.studentName,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = formattedDate,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                IconButton(onClick = { viewModel.selectBook(null); viewModel.navigateTo(Screen.DASHBOARD) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Text("Book Profile", fontWeight = FontWeight.Bold)
+                Box(modifier = Modifier.size(24.dp)) // Spacer
             }
 
-            Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                for (i in 1..5) {
-                    Icon(
-                        imageVector = if (i <= review.rating) Icons.Default.Star else Icons.Outlined.Star,
-                        contentDescription = null,
-                        tint = AcademicGold,
-                        modifier = Modifier.size(14.dp)
-                    )
+            // Cover and Spine block representation
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                bookColor.copy(alpha = 0.4f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                ElevatedCard(
+                    modifier = Modifier
+                        .size(width = 140.dp, height = 200.dp)
+                        .shadow(8.dp, RoundedCornerShape(12.dp)),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = bookColor)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp)
+                            .background(Color.Black.copy(alpha = 0.15f)),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = b.category.uppercase(),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = b.title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = b.author,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
 
-            Text(
-                text = review.reviewText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-                lineHeight = 20.sp
-            )
+            // Details metadata
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column {
+                    Text(
+                        text = b.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = "By ${b.author}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Divider()
+
+                // Shelf Location, Available info blocks
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Location card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Shelf Position", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(b.shelfLocation, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+
+                    // Available count card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Status", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (b.available > 0) "${b.available} of ${b.copies} left" else "All Loaned Out",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = if (b.available > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+
+                // Description Box
+                Column {
+                    Text("About", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = b.description,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+                }
+
+                // PDF Available Notice
+                if (b.pdfUrl.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column {
+                            Text("E-book Option Available", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            Text("Start immediately with digital read-mode.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Action request button
+                Button(
+                    onClick = { viewModel.requestBookBorrow(b) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("borrow_button"),
+                    enabled = b.available > 0,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (b.available > 0) "Request 14-Day Physical Loan" else "No physical copies left",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
     }
 }
 
-// ==========================================
-// TAB 2: MY BOOKS & STREAKS
-// ==========================================
-
+// --- DIGITAL READER SCREEN ---
 @Composable
-fun MyBooksTab(viewModel: LibraryViewModel) {
-    val activeRecords by viewModel.activeBorrowRecords.collectAsState()
-    val allRecords by viewModel.allBorrowRecords.collectAsState()
-    val pastRecords = allRecords.filter { it.returnDate != null }
+fun DigitalReaderScreen(viewModel: LibraryViewModel) {
+    val material by viewModel.selectedMaterial.collectAsStateWithLifecycle()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
-    ) {
-        // High School Study Motivation Banner
-        item {
+    material?.let { m ->
+        var currentScrollPercent by remember { mutableStateOf(0f) }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            // Topbar Info
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { viewModel.selectMaterial(null); viewModel.navigateTo(Screen.DASHBOARD) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(m.title, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Subject: ${m.category} | ${m.type}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = { viewModel.addNotification("Downloaded offline reference document.") }) {
+                    Icon(Icons.Default.Download, contentDescription = "Download")
+                }
+            }
+
+            // Horizontal Reading progress bar indicator
+            LinearProgressIndicator(
+                progress = currentScrollPercent,
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+            )
+
+            // Scrollable Reader simulator body representation
+            val docScrollState = rememberScrollState()
+            LaunchedEffect(docScrollState.value, docScrollState.maxValue) {
+                if (docScrollState.maxValue > 0) {
+                    currentScrollPercent = docScrollState.value.toFloat() / docScrollState.maxValue.toFloat()
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(docScrollState)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header style
+                Text(
+                    text = m.title.uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Oakridge High digital publishing services. Copyrighted material for study purposes.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Chapter Contents Mockup Text
+                listOf(
+                    "CHAPTER I: CORE FOUNDATIONS & MODELS" to "All natural frameworks depend directly on core dynamic mechanics. Physical bodies obey force equations (F=ma). Similarly, biological entities form elaborate symbiotic relationships that recycle atomic elements like carbon and nitrogen.",
+                    "CHAPTER II: CASE STUDY & JOINT EXAMS" to "When reviewing past district papers, focus strongly on practical setups. In physics labs, adjust resistance values slowly and record current fluctuations twice. In literature, compare Hamlet’s internal doubt with Macbeth’s unchecked ambition.",
+                    "CHAPTER III: ESSENTIAL CONCEPTS & SUMMARY" to "A complete formula list is provided below. Ensure you can derive the kinetic equations. For literature, note how F. Scott Fitzgerald uses environmental cues (like the green light) to represent ideological aspirations."
+                ).forEach { (title, paragraph) ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(paragraph, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 18.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    text = "--- End of Live Material Cache ---",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+        }
+    }
+}
+
+// --- QR SCANNER / PASSPORT SCREEN ---
+@Composable
+fun QrPassportScreen(viewModel: LibraryViewModel) {
+    val user by viewModel.currentUser.collectAsStateWithLifecycle()
+
+    user?.let { u ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                IconButton(onClick = { viewModel.navigateTo(Screen.DASHBOARD) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("My Digital Passport", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterVertically))
+            }
+
+            // QR Code Box (Drawn customly on Canvas to represent a real scanner QR)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "SCAN FOR QUICK Restock / Check-in",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+
+                // The Passport QR Code canvas block representation
+                Box(
+                    modifier = Modifier
+                        .size(220.dp)
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val size = this.size.width
+                        val numBlocks = 11
+                        val blockSize = size / numBlocks
+
+                        // Draw corner anchors
+                        listOf(
+                            Offset(0f, 0f),
+                            Offset(size - blockSize * 3, 0f),
+                            Offset(0f, size - blockSize * 3)
+                        ).forEach { pos ->
+                            drawRect(
+                                color = Color.Black,
+                                topLeft = pos,
+                                size = Size(blockSize * 3, blockSize * 3)
+                            )
+                            drawRect(
+                                color = Color.White,
+                                topLeft = Offset(pos.x + blockSize, pos.y + blockSize),
+                                size = Size(blockSize, blockSize)
+                            )
+                        }
+
+                        // Simulated random binary grids
+                        val points = listOf(
+                            4 to 1, 5 to 2, 8 to 4, 3 to 5, 6 to 5, 7 to 5, 2 to 7, 5 to 7, 8 to 7, 10 to 7,
+                            4 to 8, 7 to 8, 9 to 8, 1 to 9, 3 to 10, 6 to 10
+                        )
+                        points.forEach { (col, row) ->
+                            drawRect(
+                                color = Color.Black,
+                                topLeft = Offset(col * blockSize, row * blockSize),
+                                size = Size(blockSize, blockSize)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = u.id,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // User Info Badge
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = AcademicGoldLight)
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
                     Column {
+                        Text(text = u.name, fontWeight = FontWeight.ExtraBold)
+                        Text(text = "Group: ${u.schoolClass}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
                         Text(
-                            text = "Oakridge Study Goal",
+                            text = u.role,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
-                        Text(
-                            text = "Read at least 15 minutes daily. Achieve 100% on borrowed progress to return complete!",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Active Borrow Titles Header
-        item {
-            Text(
-                text = "ACTIVE BORROW CHECKOUTS (${activeRecords.size})",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-        }
-
-        if (activeRecords.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
-                            RoundedCornerShape(16.dp)
-                        )
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.MenuBook,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "No active book checkouts",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Browse the Catalog tab to borrow standard classroom resources.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        } else {
-            items(activeRecords, key = { it.id }) { record ->
-                ActiveCheckoutItem(
-                    record = record,
-                    onReturn = { viewModel.returnBookRecord(record) },
-                    onProgressChange = { progress -> viewModel.updateRecordProgress(record, progress) }
-                )
-            }
-        }
-
-        // Past returned books segment
-        if (pastRecords.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "ACADEMIC CHECKOUT HISTORY (${pastRecords.size})",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            items(pastRecords, key = { it.id }) { record ->
-                PastCheckoutItem(record)
-            }
-        }
-    }
-}
-
-@Composable
-fun ActiveCheckoutItem(
-    record: BorrowRecord,
-    onReturn: () -> Unit,
-    onProgressChange: (Int) -> Unit
-) {
-    val formatter = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
-    val dueStr = formatter.format(Date(record.dueDate))
-
-    var sliderState by remember(record.id) { mutableFloatStateOf(record.readingProgress.toFloat()) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("checkout_record_${record.bookId}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = record.bookTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "by ${record.author}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Due $dueStr",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Classroom Reading Progress",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                Text(
-                    text = "${sliderState.toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Slider(
-                value = sliderState,
-                onValueChange = { sliderState = it },
-                onValueChangeFinished = { onProgressChange(sliderState.toInt()) },
-                valueRange = 0f..100f,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("progress_slider_${record.bookId}")
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(
-                    onClick = onReturn,
-                    modifier = Modifier.testTag("return_button_${record.bookId}"),
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.secondary
-                    )
-                ) {
-                    Icon(Icons.Default.AssignmentReturn, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Return Book", fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun PastCheckoutItem(record: BorrowRecord) {
-    val formatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
-    val retDateStr = record.returnDate?.let { formatter.format(Date(it)) } ?: "Returned"
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = record.bookTitle,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "Returned on $retDateStr",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Complete",
-                    tint = SageGreen,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Academic Return",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SageGreen
-                )
-            }
-        }
-    }
-}
-
-// ==========================================
-// TAB 3: CAMPUS NEWS
-// ==========================================
-
-@Composable
-fun CampusNewsTab(viewModel: LibraryViewModel) {
-    val announcements by viewModel.announcements.collectAsState()
-
-    var showDraftForm by remember { mutableStateOf(false) }
-    var draftTitle by remember { mutableStateOf("") }
-    var draftContent by remember { mutableStateOf("") }
-    var draftPinned by remember { mutableStateOf(false) }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (announcements.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No Announcements Posted", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
-            ) {
-                items(announcements, key = { it.id }) { announcement ->
-                    AnnouncementItem(announcement)
-                }
-            }
-        }
-
-        FloatingActionButton(
-            onClick = { showDraftForm = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .testTag("add_announcement_fab"),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Post Suggestion")
-        }
-
-        if (showDraftForm) {
-            AlertDialog(
-                onDismissRequest = { showDraftForm = false },
-                title = { Text("Suggest Campus Library Bulletin", fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Draft a bulletin, book drive announcement, or study club alert to present on the library whiteboard.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                        
-                        OutlinedTextField(
-                            value = draftTitle,
-                            onValueChange = { draftTitle = it },
-                            label = { Text("Bulletin Subject") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("announcement_title_input"),
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = draftContent,
-                            onValueChange = { draftContent = it },
-                            label = { Text("Detailed Information") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp)
-                                .testTag("announcement_content_input"),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Checkbox(
-                                checked = draftPinned,
-                                onCheckedChange = { draftPinned = it },
-                                modifier = Modifier.testTag("announcement_pinned_checkbox")
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Pin bulletin to upper panel", fontSize = 13.sp)
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (draftTitle.isNotBlank() && draftContent.isNotBlank()) {
-                                viewModel.postNewAnnouncement(draftTitle, draftContent, draftPinned)
-                                draftTitle = ""
-                                draftContent = ""
-                                draftPinned = false
-                                showDraftForm = false
-                            }
-                        },
-                        modifier = Modifier.testTag("announcement_submit_button")
-                    ) {
-                        Text("Publish Bulletin")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDraftForm = false }) {
-                        Text("Discard")
-                    }
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun AnnouncementItem(announcement: Announcement) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (announcement.isPinned) {
-                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        border = BorderStroke(
-            width = if (announcement.isPinned) 1.5.dp else 1.dp,
-            color = if (announcement.isPinned) AcademicGold.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (announcement.isPinned) {
-                        Icon(
-                            imageVector = Icons.Default.PushPin,
-                            contentDescription = "Pinned",
-                            tint = AcademicGold,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-                    Text(
-                        text = announcement.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (announcement.isPinned) ScholasticNavy else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Text(
-                    text = announcement.date,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = announcement.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                lineHeight = 22.sp
-            )
-        }
-    }
-}
-
-// ==========================================
-// TAB 4: STUDENT CARD & PROFILE
-// ==========================================
-
-@Composable
-fun StudentCardTab(viewModel: LibraryViewModel) {
-    val studentName by viewModel.studentName.collectAsState()
-    val studentId by viewModel.studentId.collectAsState()
-    val streak by viewModel.readingStreak.collectAsState()
-    
-    val allBorrowRecords by viewModel.allBorrowRecords.collectAsState()
-    val checkedOutCount = allBorrowRecords.count { it.returnDate == null }
-    val returnedCount = allBorrowRecords.count { it.returnDate != null }
-
-    var draftName by remember { mutableStateOf(studentName) }
-    var draftId by remember { mutableStateOf(studentId) }
-    var isEditingProfile by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        VirtualLibraryCard(studentName, studentId)
-
-        if (!isEditingProfile) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "ACADEMIC ACCOMPLISHMENTS",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        StatItem(count = "$checkedOutCount", title = "Active Books")
-                        StatItem(count = "$returnedCount", title = "Completed")
-                        StatItem(count = "$streak", title = "Streak Days")
                     }
                 }
             }
 
             Button(
-                onClick = {
-                    draftName = studentName
-                    draftId = studentId
-                    isEditingProfile = true
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .testTag("edit_student_profile_button"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                onClick = { viewModel.navigateTo(Screen.DASHBOARD) },
+                modifier = Modifier.fillMaxWidth().height(44.dp)
             ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Edit Student Card Information", fontWeight = FontWeight.Bold)
+                Text("Done")
+            }
+        }
+    }
+}
+
+// --- BULLETIN / NOTIFICATIONS SCREEN ---
+@Composable
+fun NotificationsScreen(viewModel: LibraryViewModel) {
+    val systemNotes by viewModel.sysNotifications.collectAsStateWithLifecycle()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(onClick = { viewModel.navigateTo(Screen.DASHBOARD) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Text("System Alerts", fontWeight = FontWeight.Bold)
+            }
+            TextButton(onClick = { viewModel.addNotification("Alert stack cleared locally.") }) {
+                Text("Simulate Notification")
+            }
+        }
+
+        if (systemNotes.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("No recent alerts")
             }
         } else {
-            Card(
-                modifier = Modifier.fillMaxWidth().testTag("edit_student_form"),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        text = "UPDATE STUDENT REGISTER",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.5.sp
-                    )
-
-                    OutlinedTextField(
-                        value = draftName,
-                        onValueChange = { draftName = it },
-                        label = { Text("Full Name & Grade") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("student_name_input"),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = draftId,
-                        onValueChange = { draftId = it },
-                        label = { Text("Student Identifier (ID)") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("student_id_input"),
-                        singleLine = true
-                    )
-
-                    Row(
+                items(systemNotes) { note ->
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                     ) {
-                        TextButton(
-                            onClick = { isEditingProfile = false },
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("Cancel")
+                            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column {
+                                Text(note, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Delivered: Just Now", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                            }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
 
-                        Button(
-                            onClick = {
-                                viewModel.updateStudentProfile(draftName, draftId)
-                                isEditingProfile = false
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("save_student_profile_button")
+// --- AI STUDY COACH SCREEN ---
+@Composable
+fun AiStudyCoachScreen(viewModel: LibraryViewModel) {
+    val aiResponse by viewModel.aiResponse.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isAiLoading.collectAsStateWithLifecycle()
+    val history by viewModel.aiHistory.collectAsStateWithLifecycle()
+
+    var coachPrompt by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(16.dp)
+    ) {
+        // Back Topbar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { viewModel.navigateTo(Screen.DASHBOARD) }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text("AI Study Coach", fontWeight = FontWeight.Bold)
+                Text("Oakridge Library assistant powered by Gemini", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // History container list
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                .padding(12.dp)
+        ) {
+            if (history.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Welcome to AI Coach Service", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Examples you can ask:\n• 'Explain character values in Macbeth'\n• 'Summarize Chemistry ecosystem cycles'\n• 'Calculate Classical physics kinematics'",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(history) { (msg, isUser) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                         ) {
-                            Text("Save ID Card", fontWeight = FontWeight.Bold)
+                            Card(
+                                modifier = Modifier.widthIn(max = 280.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text(
+                                        text = if (isUser) "Student" else "Tutor AI",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = msg,
+                                        fontSize = 13.sp,
+                                        color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Input control row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = coachPrompt,
+                onValueChange = { coachPrompt = it },
+                placeholder = { Text("Ask study tutor questions...") },
+                modifier = Modifier.weight(1f).testTag("ai_input_text"),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            IconButton(
+                onClick = {
+                    viewModel.askAiTutor(coachPrompt)
+                    coachPrompt = ""
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                    .size(48.dp)
+                    .testTag("ai_send_button")
+            ) {
+                Icon(Icons.Default.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+    }
+}
+
+// --- ADMIN / LIBRARIAN DASHBOARD ---
+@Composable
+fun AdminDashboard(viewModel: LibraryViewModel) {
+    var adminSection by remember { mutableStateOf(0) } // 0 = Statistics, 1 = Books, 2 = Loans, 3 = Bulletins
+
+    val totalBooks by viewModel.totalBooksCount.collectAsStateWithLifecycle()
+    val activeLoans by viewModel.activeLoansCount.collectAsStateWithLifecycle()
+    val pendingCount by viewModel.pendingLoansCount.collectAsStateWithLifecycle()
+    val overdueCount by viewModel.overdueLoansCount.collectAsStateWithLifecycle()
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                NavigationBarItem(
+                    selected = adminSection == 0,
+                    onClick = { adminSection = 0 },
+                    icon = { Icon(Icons.Default.Analytics, contentDescription = "Stats") },
+                    label = { Text("Stats") }
+                )
+                NavigationBarItem(
+                    selected = adminSection == 1,
+                    onClick = { adminSection = 1 },
+                    icon = { Icon(Icons.Default.PostAdd, contentDescription = "Add Book") },
+                    label = { Text("Inventory") }
+                )
+                NavigationBarItem(
+                    selected = adminSection == 2,
+                    onClick = { adminSection = 2 },
+                    icon = { Icon(Icons.Default.AssignmentReturned, contentDescription = "Pending Rules") },
+                    label = { Text("Loans") }
+                )
+                NavigationBarItem(
+                    selected = adminSection == 3,
+                    onClick = { adminSection = 3 },
+                    icon = { Icon(Icons.Default.Campaign, contentDescription = "Bulletins") },
+                    label = { Text("Alerts") }
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // Admin Top Header representing profile
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .statusBarsPadding()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape), contentAlignment = Alignment.Center) {
+                        Text("LI", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    Column {
+                        Text("Admin Dashboard", fontWeight = FontWeight.ExtraBold)
+                        Text("Central Librarian Hub", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                IconButton(onClick = { viewModel.logout() }) {
+                    Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
+                }
+            }
+
+            // Dynamic Body sections
+            when (adminSection) {
+                0 -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text("Overall Statistics", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+
+                    // Cards Grid representation
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Total Volumes", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(totalBooks.toString(), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Active Handouts", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(activeLoans.toString(), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Pending Approvals", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = pendingCount.toString(),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (pendingCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Overdue Notices", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = overdueCount.toString(),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (overdueCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    // Simulated Charts representation
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Loans Activity Trends", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
+                                val canvasWidth = size.width
+                                val canvasHeight = size.height
+                                val points = listOf(20f, 40f, 35f, 60f, 55f, 80f, 95f)
+                                val spacing = canvasWidth / (points.size - 1)
+
+                                val pathPoints = points.mapIndexed { idx, value ->
+                                    Offset(idx * spacing, canvasHeight - (value * canvasHeight / 100f))
+                                }
+
+                                pathPoints.zipWithNext { p1, p2 ->
+                                    drawLine(
+                                        color = Color(0xFFD0BCFF),
+                                        start = p1,
+                                        end = p2,
+                                        strokeWidth = 6f
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                1 -> AdminInventoryTab(viewModel)
+                2 -> AdminLoansTab(viewModel)
+                3 -> AdminAlertsTab(viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminInventoryTab(viewModel: LibraryViewModel) {
+    var title by remember { mutableStateOf("") }
+    var author by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("Shelf A-1") }
+    var copies by remember { mutableStateOf("3") }
+    var description by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Literature") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Register New Book", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+
+        OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Book Title") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = author, onValueChange = { author = it }, label = { Text("Author Name") }, modifier = Modifier.fillMaxWidth())
+
+        // Categories select
+        Text("Book Domain Category", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Literature", "Mathematics", "Physics", "Chemistry").forEach { cat ->
+                val isSel = selectedCategory == cat
+                FilterChip(selected = isSel, onClick = { selectedCategory = cat }, label = { Text(cat, fontSize = 11.sp) })
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = copies,
+                onValueChange = { copies = it },
+                label = { Text("Physical Copies") },
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = location,
+                onValueChange = { location = it },
+                label = { Text("Shelf Area (Code)") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it },
+            label = { Text("Brief Book Description") },
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 2
+        )
+
+        Button(
+            onClick = {
+                val copyNum = copies.toIntOrNull() ?: 3
+                viewModel.addBook(title, author, selectedCategory, copyNum, location, description, "#D0BCFF")
+                title = ""
+                author = ""
+                description = ""
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Add to catalog database")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Upload Digital Material", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+        var matTitle by remember { mutableStateOf("") }
+        var matType by remember { mutableStateOf("PDF") }
+        var matCategory by remember { mutableStateOf("Physics") }
+
+        OutlinedTextField(value = matTitle, onValueChange = { matTitle = it }, label = { Text("Material/Title") }, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("PDF", "Notes", "Past paper", "Magazine").forEach { type ->
+                val isSel = matType == type
+                FilterChip(selected = isSel, onClick = { matType = type }, label = { Text(type, fontSize = 11.sp) })
+            }
+        }
+
+        Button(
+            onClick = {
+                viewModel.uploadDigitalMaterial(matTitle, matCategory, matType, "Pre-requisite high school study material.")
+                matTitle = ""
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Publish Digital Document")
+        }
+    }
+}
+
+@Composable
+fun AdminLoansTab(viewModel: LibraryViewModel) {
+    val records by viewModel.allBorrowRecords.collectAsStateWithLifecycle()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text("Borrowed Handouts Queue", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+
+        if (records.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("No loan records found.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(records) { record ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(record.bookTitle, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Stud ID: ${record.studentId} | Name: ${record.studentName}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+
+                                Badge(
+                                    containerColor = when (record.status) {
+                                        "PENDING" -> MaterialTheme.colorScheme.secondaryContainer
+                                        "RETURNED" -> MaterialTheme.colorScheme.surfaceVariant
+                                        else -> MaterialTheme.colorScheme.primary
+                                    }
+                                ) {
+                                    Text(record.status, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (record.status == "PENDING") {
+                                    Button(
+                                        onClick = { viewModel.approveBorrow(record) },
+                                        modifier = Modifier.weight(1f).height(36.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Approve Handout", fontSize = 11.sp)
+                                    }
+                                } else if (record.status == "APPROVED" || record.status == "OVERDUE") {
+                                    Button(
+                                        onClick = { viewModel.markReturned(record) },
+                                        modifier = Modifier.weight(1f).height(36.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Mark Restocked", fontSize = 11.sp)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1603,121 +1859,41 @@ fun StudentCardTab(viewModel: LibraryViewModel) {
 }
 
 @Composable
-fun VirtualLibraryCard(studentName: String, studentId: String) {
-    Card(
+fun AdminAlertsTab(viewModel: LibraryViewModel) {
+    var title by remember { mutableStateOf("") }
+    var content by remember { mutableStateOf("") }
+    var isPinned by remember { mutableStateOf(false) }
+
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(190.dp)
-            .shadow(6.dp, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+        Text("Pin Bulletins Alert", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+
+        OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Bulletin Subject") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text("Details Content") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "OAKRIDGE HIGH SCHOOL",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.5.sp
-                    )
-                    Text(
-                        text = "Official Student Library Pass",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.School,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Column {
-                    Text(
-                        text = studentName,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "ID: $studentId",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                BarcodeWidget(modifier = Modifier.size(width = 110.dp, height = 45.dp))
-            }
+            Text("Pin to top bulletin boards.")
+            Switch(checked = isPinned, onCheckedChange = { isPinned = it })
         }
-    }
-}
 
-@Composable
-fun BarcodeWidget(modifier: Modifier = Modifier) {
-    Canvas(
-        modifier = modifier
-            .background(Color.White, RoundedCornerShape(4.dp))
-            .padding(vertical = 4.dp, horizontal = 6.dp)
-    ) {
-        val width = size.width
-        val height = size.height
-
-        val stripePattern = listOf(
-            2f, 4f, 1f, 3f, 4f, 2f, 1f, 5f, 2f, 1f, 3f, 2f, 4f, 1f, 3f, 2f, 1f, 3f, 5f, 1f
-        )
-        val totalUnits = stripePattern.sum()
-        val unitWidth = width / totalUnits
-
-        var currentX = 0f
-        stripePattern.forEachIndexed { index, stripe ->
-            val isBlack = index % 2 == 0
-            val stripeWidth = stripe * unitWidth
-            if (isBlack) {
-                drawRect(
-                    color = Color.Black,
-                    topLeft = Offset(currentX, 0f),
-                    size = androidx.compose.ui.geometry.Size(stripeWidth, height)
-                )
-            }
-            currentX += stripeWidth
+        Button(
+            onClick = {
+                viewModel.addAnnouncement(title, content, isPinned)
+                title = ""
+                content = ""
+                isPinned = false
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Broadband announcement notification")
         }
-    }
-}
-
-@Composable
-fun StatItem(count: String, title: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = count,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = title,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            fontWeight = FontWeight.Medium
-        )
     }
 }
