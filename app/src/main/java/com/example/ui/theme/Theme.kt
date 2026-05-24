@@ -1,104 +1,59 @@
 package com.example.ui.theme
 
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.Typography
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 
-// Sophisticated Dark Color Tokens from Design HTML
-val DarkPrimary = Color(0xFFD0BCFF)       // Lavender
-val DarkOnPrimary = Color(0xFF381E72)     // Dark Plum
-val DarkPrimaryContainer = Color(0xFF4A4458)
-val DarkOnPrimaryContainer = Color(0xFFE8DEF8)
-val DarkSecondary = Color(0xFFEADDFF)
-val DarkOnSecondary = Color(0xFF21005D)
-val DarkSecondaryContainer = Color(0xFF332D41)
-val DarkBackground = Color(0xFF1C1B1F)    // Charcoal
-val DarkOnBackground = Color(0xFFE6E1E5)  // Light Grey
-val DarkSurface = Color(0xFF2B2930)       // Dark Surface
-val DarkOnSurface = Color(0xFFE6E1E5)
-val DarkSurfaceVariant = Color(0xFF211F26)
-val DarkOnSurfaceVariant = Color(0xFFCAC4D0)
-val DarkOutline = Color(0xFF49454F)       // M3 border
-val DarkError = Color(0xFFFFB4AB)
-val DarkOnError = Color(0xFF690005)
+private val DarkColorScheme =
+  darkColorScheme(
+    primary = ScholasticNavyLight,
+    onPrimary = DarkSlate,
+    secondary = AcademicGoldLight,
+    onSecondary = DarkSlate,
+    tertiary = SageGreen,
+    background = DarkSlate,
+    surface = Color(0xFF1E293B),
+    onBackground = ParchmentWhite,
+    onSurface = ParchmentWhite
+  )
 
-val SophisticatedDarkColorScheme = darkColorScheme(
-    primary = DarkPrimary,
-    onPrimary = DarkOnPrimary,
-    primaryContainer = DarkPrimaryContainer,
-    onPrimaryContainer = DarkOnPrimaryContainer,
-    secondary = DarkSecondary,
-    onSecondary = DarkOnSecondary,
-    secondaryContainer = DarkSecondaryContainer,
-    background = DarkBackground,
-    onBackground = DarkOnBackground,
-    surface = DarkSurface,
-    onSurface = DarkOnSurface,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = DarkOnSurfaceVariant,
-    outline = DarkOutline,
-    error = DarkError,
-    onError = DarkOnError
-)
-
-val AppTypography = Typography(
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
-    ),
-    titleSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    )
-)
+private val LightColorScheme =
+  lightColorScheme(
+    primary = ScholasticNavy,
+    onPrimary = ParchmentWhite,
+    secondary = AcademicGold,
+    onSecondary = ParchmentWhite,
+    tertiary = SageGreen,
+    background = ParchmentWhite,
+    surface = SoftGray,
+    onBackground = TextDark,
+    onSurface = TextDark
+  )
 
 @Composable
 fun MyApplicationTheme(
-    content: @Composable () -> Unit
+  darkTheme: Boolean = isSystemInDarkTheme(),
+  // Dynamic color is available on Android 12+
+  dynamicColor: Boolean = true,
+  content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = SophisticatedDarkColorScheme,
-        typography = AppTypography,
-        content = content
-    )
+  val colorScheme =
+    when {
+      dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        val context = LocalContext.current
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+      }
+
+      darkTheme -> DarkColorScheme
+      else -> LightColorScheme
+    }
+
+  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

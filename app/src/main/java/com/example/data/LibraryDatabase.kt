@@ -6,18 +6,12 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [
-        User::class,
-        Book::class,
-        BorrowRecord::class,
-        DigitalMaterial::class,
-        Announcement::class
-    ],
-    version = 3,
+    entities = [Book::class, BorrowRecord::class, BookReview::class, Announcement::class],
+    version = 1,
     exportSchema = false
 )
 abstract class LibraryDatabase : RoomDatabase() {
-    abstract fun libraryDao(): LibraryDao
+    abstract val libraryDao: LibraryDao
 
     companion object {
         @Volatile
@@ -28,7 +22,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     LibraryDatabase::class.java,
-                    "library_database"
+                    "high_school_library_db"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

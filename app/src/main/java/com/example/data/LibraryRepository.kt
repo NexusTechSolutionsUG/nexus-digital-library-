@@ -1,184 +1,319 @@
 package com.example.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LibraryRepository(private val libraryDao: LibraryDao) {
 
-    val allUsers: Flow<List<User>> = libraryDao.getAllUsers()
     val allBooks: Flow<List<Book>> = libraryDao.getAllBooks()
     val allBorrowRecords: Flow<List<BorrowRecord>> = libraryDao.getAllBorrowRecords()
-    val allDigitalMaterials: Flow<List<DigitalMaterial>> = libraryDao.getAllDigitalMaterials()
+    val activeBorrowRecords: Flow<List<BorrowRecord>> = libraryDao.getActiveBorrowRecords()
     val allAnnouncements: Flow<List<Announcement>> = libraryDao.getAllAnnouncements()
 
-    fun searchBooks(query: String): Flow<List<Book>> = libraryDao.searchBooks("%$query%")
+    fun getBookById(id: String): Flow<Book?> = libraryDao.getBookByIdFlow(id)
 
-    fun getBorrowRecordsForStudent(studentId: String): Flow<List<BorrowRecord>> =
-        libraryDao.getBorrowRecordsForStudent(studentId)
+    fun getBooksByCategory(category: String): Flow<List<Book>> = libraryDao.getBooksByCategory(category)
 
-    suspend fun getUserById(userId: String): User? = libraryDao.getUserById(userId)
+    fun searchBooks(query: String): Flow<List<Book>> = libraryDao.searchBooks(query)
 
-    suspend fun insertUser(user: User) = libraryDao.insertUser(user)
-    suspend fun updateUser(user: User) = libraryDao.updateUser(user)
+    fun getReviewsForBook(bookId: String): Flow<List<BookReview>> = libraryDao.getReviewsForBook(bookId)
 
-    suspend fun insertBook(book: Book) = libraryDao.insertBook(book)
-    suspend fun updateBook(book: Book) = libraryDao.updateBook(book)
-    suspend fun deleteBook(book: Book) = libraryDao.deleteBook(book)
+    suspend fun insertBook(book: Book) = withContext(Dispatchers.IO) {
+        libraryDao.insertBook(book)
+    }
 
-    suspend fun insertBorrowRecord(record: BorrowRecord) = libraryDao.insertBorrowRecord(record)
-    suspend fun updateBorrowRecord(record: BorrowRecord) = libraryDao.updateBorrowRecord(record)
+    suspend fun toggleFavorite(bookId: String, isFavorite: Boolean) = withContext(Dispatchers.IO) {
+        libraryDao.updateFavorite(bookId, isFavorite)
+    }
 
-    suspend fun insertDigitalMaterial(material: DigitalMaterial) = libraryDao.insertDigitalMaterial(material)
-    suspend fun deleteDigitalMaterial(material: DigitalMaterial) = libraryDao.deleteDigitalMaterial(material)
+    suspend fun borrowBook(book: Book, studentName: String): Boolean = withContext(Dispatchers.IO) {
+        val currentBook = libraryDao.getBookById(book.id) ?: return@withContext false
+        if (currentBook.availableCopies <= 0) return@withContext false
 
-    suspend fun insertAnnouncement(announcement: Announcement) = libraryDao.insertAnnouncement(announcement)
-    suspend fun deleteAnnouncement(announcement: Announcement) = libraryDao.deleteAnnouncement(announcement)
+        // Update book copies
+        libraryDao.updateAvailableCopies(book.id, currentBook.availableCopies - 1)
 
-    suspend fun preseedIfEmpty() {
-        val existingAdmin = libraryDao.getUserById("admin")
-        if (existingAdmin == null) {
-            // Seed Users
-            libraryDao.insertUser(User("student1", "Jamie Vance", "123456", "STUDENT", "Grade 11", 5))
-            libraryDao.insertUser(User("student2", "Sam Adams", "123456", "STUDENT", "Grade 12", 2))
-            libraryDao.insertUser(User("teacher1", "Dr. Helen", "123456", "TEACHER", "Science Dept"))
-            libraryDao.insertUser(User("admin", "Librarian Jamie", "123456", "LIBRARIAN", "Admin"))
+        // Make borrow record
+        val record = BorrowRecord(
+            bookId = book.id,
+            bookTitle = book.title,
+            author = book.author,
+            borrowDate = System.currentTimeMillis(),
+            dueDate = System.currentTimeMillis() + (14L * 24L * 60L * 60L * 1000L), // 14 days
+            readingProgress = 0
+        )
+        libraryDao.insertBorrowRecord(record)
+        true
+    }
 
-            // Seed Books
-            libraryDao.insertBook(Book(
+    suspend fun returnBook(record: BorrowRecord) = withContext(Dispatchers.IO) {
+        val currentBook = libraryDao.getBookById(record.bookId) ?: return@withContext
+        libraryDao.updateAvailableCopies(record.bookId, currentBook.availableCopies + 1)
+        
+        val updatedRecord = record.copy(
+            returnDate = System.currentTimeMillis(),
+            readingProgress = 100
+        )
+        libraryDao.updateBorrowRecord(updatedRecord)
+    }
+
+    suspend fun updateReadingProgress(record: BorrowRecord, progress: Int) = withContext(Dispatchers.IO) {
+        libraryDao.updateBorrowRecord(record.copy(readingProgress = progress.coerceIn(0, 100)))
+    }
+
+    suspend fun addReview(bookId: String, studentName: String, rating: Int, reviewText: String) = withContext(Dispatchers.IO) {
+        val review = BookReview(
+            bookId = bookId,
+            studentName = studentName,
+            rating = rating,
+            reviewText = reviewText,
+            timestamp = System.currentTimeMillis()
+        )
+        libraryDao.insertReview(review)
+
+        // Recalculate rating on book - quick updates
+        val reviews = libraryDao.getReviewsForBook(bookId).first()
+        val totalRating = reviews.sumOf { it.rating } + rating
+        val averageRating = totalRating.toFloat() / (reviews.size + 1)
+        val currentBook = libraryDao.getBookById(bookId)
+        if (currentBook != null) {
+            libraryDao.insertBook(currentBook.copy(rating = averageRating))
+        }
+    }
+
+    suspend fun addAnnouncement(title: String, content: String, isPinned: Boolean) = withContext(Dispatchers.IO) {
+        val announcement = Announcement(
+            title = title,
+            content = content,
+            date = "Today",
+            isPinned = isPinned
+        )
+        libraryDao.insertAnnouncement(announcement)
+    }
+
+    init {
+        // Run seed data initialization in background
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val books = libraryDao.getAllBooks().first()
+                if (books.isEmpty()) {
+                    seedDatabase()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private suspend fun seedDatabase() {
+        val defaultBooks = listOf(
+            Book(
+                id = "lit-001",
                 title = "The Great Gatsby",
                 author = "F. Scott Fitzgerald",
                 category = "Literature",
-                copies = 5,
-                available = 4,
-                pdfUrl = "https://example.com/gatsby.pdf",
-                shelfLocation = "Shelf C-4",
-                description = "An exquisite story about wealth, love, and the American Dream in the Roaring Twenties.",
-                coverColorHex = "#D0BCFF"
-            ))
-            libraryDao.insertBook(Book(
-                title = "Biology I: Ecosystems",
-                author = "Dr. Robert Winston",
-                category = "Biology",
-                copies = 3,
-                available = 2,
-                pdfUrl = "https://example.com/biology_ecosystems.pdf",
-                shelfLocation = "Shelf B-2",
-                description = "Comprehensive guide to high school biology, concentrating on ecosystem models, energy flow, and bio-cycles.",
-                coverColorHex = "#98FB98"
-            ))
-            libraryDao.insertBook(Book(
-                title = "The Odyssey",
-                author = "Homer",
+                description = "Set in the glamorous, roaring twenties on Long Island, this quintessential masterpiece is a beautifully structured narration of the elusive American dream, high society, and Jay Gatsby's fateful, romantic obsession with Daisy Buchanan.",
+                publishedYear = 1925,
+                totalCopies = 5,
+                availableCopies = 4,
+                rating = 4.5f,
+                coverUrl = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "lit-002",
+                title = "To Kill a Mockingbird",
+                author = "Harper Lee",
                 category = "Literature",
-                copies = 4,
-                available = 1,
-                pdfUrl = "",
-                shelfLocation = "Shelf C-1",
-                description = "An ancient Greek epic poem detailing Odysseus' 10-year journey home to Ithaca.",
-                coverColorHex = "#FFB4AB"
-            ))
-            libraryDao.insertBook(Book(
-                title = "Organic Chemistry Fundamentals",
-                author = "Prof. Jane Miller",
-                category = "Chemistry",
-                copies = 2,
-                available = 2,
-                pdfUrl = "https://example.com/org_chemistry.pdf",
-                shelfLocation = "Shelf B-3",
-                description = "Core organic reactions, nomenclature, and carbon chain formations explained for high school scholars.",
-                coverColorHex = "#FFC0CB"
-            ))
-            libraryDao.insertBook(Book(
-                title = "Introduction to Calculus",
-                author = "Newton & Leibniz",
-                category = "Mathematics",
-                copies = 10,
-                available = 10,
-                pdfUrl = "https://example.com/intro_calculus.pdf",
-                shelfLocation = "Shelf A-1",
-                description = "Mastering limits, derivatives, integration, and mathematical series with high school level equations.",
-                coverColorHex = "#F0E68C"
-            ))
-            libraryDao.insertBook(Book(
-                title = "Classical Physics Essentials",
-                author = "Isaac Newton",
-                category = "Physics",
-                copies = 3,
-                available = 3,
-                pdfUrl = "",
-                shelfLocation = "Shelf A-2",
-                description = "Basic Mechanics, Force Laws, Wave Energy, and Classical Optics with solved work examples.",
-                coverColorHex = "#DDA0DD"
-            ))
-
-            // Seed Digital Materials
-            libraryDao.insertDigitalMaterial(DigitalMaterial(
-                title = "2025 Physics Past Paper Unit 1",
-                category = "Physics",
-                type = "Past paper",
-                fileUrl = "https://example.com/phys2025.pdf",
-                description = "Full terminal paper with detailed marking guide from District Joint Examinations."
-            ))
-            libraryDao.insertDigitalMaterial(DigitalMaterial(
-                title = "Macbeth Study Guide and Scene Exploded",
+                description = "Set in the fictional town of Maycomb, Alabama, during the Great Depression, this stunning novel explores racial injustice and the destruction of innocence. Atticus Finch, an honorable lawyer, defends a Black man falsely accused of raping a white woman, seen through the eyes of young Scout Finch.",
+                publishedYear = 1960,
+                totalCopies = 6,
+                availableCopies = 6,
+                rating = 4.9f,
+                coverUrl = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "lit-003",
+                title = "Hamlet",
+                author = "William Shakespeare",
                 category = "Literature",
-                type = "Notes",
-                fileUrl = "https://example.com/macbeth_guide.pdf",
-                description = "Soliloquy translations and act-by-act character dynamic breakdowns."
-            ))
-            libraryDao.insertDigitalMaterial(DigitalMaterial(
-                title = "Spring Term Physics Lab Manual",
-                category = "Physics",
-                type = "Notes",
-                fileUrl = "https://example.com/phys_lab.pdf",
-                description = "Required procedures for the terminal lab practicals."
-            ))
-            libraryDao.insertDigitalMaterial(DigitalMaterial(
-                title = "School Chronicle - Spring Edition",
-                category = "General",
-                type = "Magazine",
-                fileUrl = "https://example.com/spring_mag.pdf",
-                description = "Interviews with sports captains and academic quiz winners."
-            ))
+                description = "Shakespeare's grandest tragedy. Prince Hamlet is called to avenge his father's murder, sparking an introspective journey exploring mortality, revenge, existentialism, and betrayal that definitions of dramatic literature.",
+                publishedYear = 1603,
+                totalCopies = 8,
+                availableCopies = 7,
+                rating = 4.7f,
+                coverUrl = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "fic-001",
+                title = "1984",
+                author = "George Orwell",
+                category = "Fiction",
+                description = "A gripping dystopian masterpiece exploring total government surveillance, control, propaganda, and thought-police under Big Brother. Winston Smith searches for truth and self-expression in a highly regimented society.",
+                publishedYear = 1949,
+                totalCopies = 4,
+                availableCopies = 2,
+                rating = 4.8f,
+                coverUrl = "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "fic-002",
+                title = "Fahrenheit 451",
+                author = "Ray Bradbury",
+                category = "Fiction",
+                description = "In a future, consumer-driven society where books are completely outlawed and firemen burn academic collections, Guy Montag begins questioning the digital screens, virtual reality walls, and his high school curriculum.",
+                publishedYear = 1953,
+                totalCopies = 5,
+                availableCopies = 5,
+                rating = 4.6f,
+                coverUrl = "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "sci-001",
+                title = "A Brief History of Time",
+                author = "Stephen Hawking",
+                category = "Science & Tech",
+                description = "The landmark, accessible science bestseller. Hawking explains cosmology, black holes, general relativity, quantum mechanics, and the origin of our vast, beautiful universe with crystal clarity.",
+                publishedYear = 1988,
+                totalCopies = 3,
+                availableCopies = 3,
+                rating = 4.7f,
+                coverUrl = "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "sci-002",
+                title = "The Code Book",
+                author = "Simon Singh",
+                category = "Science & Tech",
+                description = "An excellent, dramatic history of codes, cryptos, and code-breaking. From ancient ciphers protecting letters to high-school math foundations and modern quantum cryptography encryption systems.",
+                publishedYear = 1999,
+                totalCopies = 3,
+                availableCopies = 2,
+                rating = 4.6f,
+                coverUrl = "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "sci-003",
+                title = "Automate the Boring Stuff",
+                author = "Al Sweigart",
+                category = "Science & Tech",
+                description = "The ultimate practical introduction to Python. Great for code-oriented high school students looking to build scrapers, auto-sort folders, automate sheets, and customize digital homework systems.",
+                publishedYear = 2015,
+                totalCopies = 5,
+                availableCopies = 5,
+                rating = 4.8f,
+                coverUrl = "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "his-001",
+                title = "The Diary of Anne Frank",
+                author = "Anne Frank",
+                category = "History",
+                description = "The poignant journal kept by a young Jewish girl in hiding during the Nazi occupation of the Netherlands in WWII. A classic deeply personal, historical document and profile of hope.",
+                publishedYear = 1947,
+                totalCopies = 4,
+                availableCopies = 4,
+                rating = 4.9f,
+                coverUrl = "https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "his-002",
+                title = "Sapiens",
+                author = "Yuval Noah Harari",
+                category = "History",
+                description = "An overarching, dramatic narrative of human history. Sapiens describes our evolutionary breakthroughs from hunter-gatherers to cognitive, agricultural, and modern scientific revolutions.",
+                publishedYear = 2011,
+                totalCopies = 4,
+                availableCopies = 3,
+                rating = 4.5f,
+                coverUrl = "https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "self-001",
+                title = "Atomic Habits",
+                author = "James Clear",
+                category = "Self-Growth",
+                description = "The absolute guide to systemizing your daily routines. Clear shares how tiny 1% daily changes translate into massive life successes over years, perfect for setting study routines and focus strategies.",
+                publishedYear = 2018,
+                totalCopies = 7,
+                availableCopies = 5,
+                rating = 4.9f,
+                coverUrl = "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=400&q=80"
+            ),
+            Book(
+                id = "self-002",
+                title = "Mindset",
+                author = "Carol S. Dweck",
+                category = "Self-Growth",
+                description = "Stanford psychologist Carol Dweck shows how our intelligence and abilities can be actively developed via hard work, mentorship, resilient learning loops, and embracing a growth mindset.",
+                publishedYear = 2006,
+                totalCopies = 6,
+                availableCopies = 6,
+                rating = 4.7f,
+                coverUrl = "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=400&q=80"
+            )
+        )
 
-            // Seed Borrow Records
-            libraryDao.insertBorrowRecord(BorrowRecord(
-                studentId = "student1",
-                studentName = "Jamie Vance",
-                bookId = 1,
-                bookTitle = "The Great Gatsby",
-                borrowDate = "2026-05-10",
-                returnDate = "2026-05-24",
-                status = "APPROVED"
-            ))
-            libraryDao.insertBorrowRecord(BorrowRecord(
-                studentId = "student1",
-                studentName = "Jamie Vance",
-                bookId = 3,
-                bookTitle = "The Odyssey",
-                borrowDate = "2026-05-02",
-                returnDate = "2026-05-16",
-                status = "OVERDUE"
-            ))
-
-            // Seed Announcements
-            libraryDao.insertAnnouncement(Announcement(
-                title = "Annual Science Fair Books Reservation",
-                content = "Books in the Science Shelf A and B are reserved for research during biology class. High demand items are limited to 3-day short-term loans.",
-                timestamp = "2026-05-20",
+        val defaultAnnouncements = listOf(
+            Announcement(
+                title = "Welcome to your Digital Library Space! 📚",
+                content = "We are thrilled to launch the brand-new High School Digital Library Interface. Explore award-winning literature, check out coding manuals, build daily streaks, write student reviews, and keep track of classroom assignments. Happy reading!",
+                date = "May 22, 2026",
                 isPinned = true
-            ))
-            libraryDao.insertAnnouncement(Announcement(
-                title = "New Chemistry past papers uploaded",
-                content = "S4 Chem joint exam papers from 2023, 2024, and 2025 are now online in the E-Material section. Download them for offline study.",
-                timestamp = "2026-05-21",
+            ),
+            Announcement(
+                title = "Student Book Club Meetup ☕",
+                content = "This Friday at 3:30 PM, the Book Club will host an open forum discussions about 'The Great Gatsby' in Room 302. Come with favorite quotes, thematic notes, and enjoy complimentary snacks!",
+                date = "May 21, 2026",
                 isPinned = false
-            ))
-            libraryDao.insertAnnouncement(Announcement(
-                title = "Library closed on Friday",
-                content = "Due to regional educator workshop assemblies, the physical library tables will close on Friday. Digital reading remains fully active.",
-                timestamp = "2026-05-22",
+            ),
+            Announcement(
+                title = "AP Exams Pre-Study Week ✍️",
+                content = "Need a silent study space? The upper library gallery has been reserved exclusively for AP Exam study groups and collaborative syllabus reviews. Quiet hours will be strictly maintained.",
+                date = "May 18, 2026",
                 isPinned = false
-            ))
+            )
+        )
+
+        libraryDao.insertBooks(defaultBooks)
+        libraryDao.insertAnnouncements(defaultAnnouncements)
+
+        // Add some default reviews for books to make them feel active
+        val defaultReviews = listOf(
+            BookReview(
+                bookId = "self-001",
+                studentName = "Alex Rivera (Grade 11)",
+                rating = 5,
+                reviewText = "This completely changed how I organize my study system and track my homework! Absolutely map-shifting and easy to put into practice.",
+                timestamp = System.currentTimeMillis() - 86400000L
+            ),
+            BookReview(
+                bookId = "self-001",
+                studentName = "Chloe Chen (Grade 12)",
+                rating = 4,
+                reviewText = "A super interesting breakdown of triggers, rewards, and habit loops. I've designed a coding routine around it.",
+                timestamp = System.currentTimeMillis() - 172800000L
+            ),
+            BookReview(
+                bookId = "lit-001",
+                studentName = "Daniel Miller (Grade 10)",
+                rating = 5,
+                reviewText = "Beautiful prose. The tragedy and decay of the American dream is perfectly painted. Best literature book we've had.",
+                timestamp = System.currentTimeMillis() - 259200000L
+            ),
+            BookReview(
+                bookId = "sci-003",
+                studentName = "Max Foster (Grade 11)",
+                rating = 5,
+                reviewText = "Incredible Python coursebook. The lessons on regex and folder automation saved me hours on my science fair project!",
+                timestamp = System.currentTimeMillis() -  43200000L
+            )
+        )
+        for (rev in defaultReviews) {
+            libraryDao.insertReview(rev)
         }
     }
 }
