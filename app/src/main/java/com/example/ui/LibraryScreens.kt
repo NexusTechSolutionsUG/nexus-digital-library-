@@ -226,214 +226,212 @@ fun CatalogTab(viewModel: LibraryViewModel) {
 
     var catalogMode by remember { mutableStateOf("curriculum") }
 
-    if (catalogMode == "curriculum") {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                    .border(getGlassBorder(isSystemInDarkTheme()), RoundedCornerShape(12.dp))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Button(
-                    onClick = { catalogMode = "curriculum" },
-                    modifier = Modifier.weight(1f).height(36.dp).testTag("mode_curriculum_btn"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (catalogMode == "curriculum") MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (catalogMode == "curriculum") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(imageVector = Icons.Default.School, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text("Class Curriculum", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Button(
-                    onClick = { catalogMode = "library" },
-                    modifier = Modifier.weight(1f).height(36.dp).testTag("mode_library_btn"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (catalogMode == "library") MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (catalogMode == "library") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(imageVector = Icons.Default.LocalLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text("General Library", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            AcademicCurriculumWorkspace(viewModel)
-        }
-        return
-    }
-
-    val categories = listOf("All", "Literature", "Science & Tech", "Fiction", "History", "Self-Growth")
-
     Column(modifier = Modifier.fillMaxSize()) {
-        // Search & Filter Block
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                .border(getGlassBorder(isSystemInDarkTheme()), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Styled Search Text Field with voice and scanning shortcuts
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
+            Button(
+                onClick = { catalogMode = "curriculum" },
+                modifier = Modifier.weight(1f).height(36.dp).testTag("mode_curriculum_btn"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (catalogMode == "curriculum") MaterialTheme.colorScheme.primary else Color.Transparent,
+                    contentColor = if (catalogMode == "curriculum") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(imageVector = Icons.Default.School, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("Class Curriculum", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Button(
+                onClick = { catalogMode = "library" },
+                modifier = Modifier.weight(1f).height(36.dp).testTag("mode_library_btn"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (catalogMode == "library") MaterialTheme.colorScheme.primary else Color.Transparent,
+                    contentColor = if (catalogMode == "library") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(imageVector = Icons.Default.LocalLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("General Library", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (catalogMode == "curriculum") {
+            AcademicCurriculumWorkspace(viewModel)
+        } else {
+            val categories = listOf("All", "Literature", "Science & Tech", "Fiction", "History", "Self-Growth")
+
+            // Search & Filter Block
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("catalog_search_input"),
-                placeholder = { Text("Search title, author, description...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "SearchIcon") },
-                trailingIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (searchQuery.isNotEmpty()) {
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Styled Search Text Field with voice and scanning shortcuts
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("catalog_search_input"),
+                    placeholder = { Text("Search title, author, description...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "SearchIcon") },
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { viewModel.updateSearchQuery("") },
+                                    modifier = Modifier.testTag("clear_search_button")
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                }
+                            }
                             IconButton(
-                                onClick = { viewModel.updateSearchQuery("") },
-                                modifier = Modifier.testTag("clear_search_button")
+                                onClick = { showVoiceDialog = true },
+                                modifier = Modifier.testTag("voice_search_btn")
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                Icon(Icons.Default.Mic, contentDescription = "Voice search", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            IconButton(
+                                onClick = { showScanDialog = true },
+                                modifier = Modifier.testTag("barcode_scan_btn")
+                            ) {
+                                Icon(Icons.Default.QrCodeScanner, contentDescription = "Barcode/ISBN scan", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
-                        IconButton(
-                            onClick = { showVoiceDialog = true },
-                            modifier = Modifier.testTag("voice_search_btn")
-                        ) {
-                            Icon(Icons.Default.Mic, contentDescription = "Voice search", tint = MaterialTheme.colorScheme.primary)
-                        }
-                        IconButton(
-                            onClick = { showScanDialog = true },
-                            modifier = Modifier.testTag("barcode_scan_btn")
-                        ) {
-                            Icon(Icons.Default.QrCodeScanner, contentDescription = "Barcode/ISBN scan", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                    )
                 )
-            )
 
-            // Dynamic Advanced Search Options (Sorting and availability controls)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Sorting triggers
+                // Dynamic Advanced Search Options (Sorting and availability controls)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Sort:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    listOf("Title", "Rating", "Year").forEach { opt ->
-                        val isSortSelected = sortOrder == opt
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    color = if (isSortSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .clickable { viewModel.searchSortOrder.value = opt }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(opt, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isSortSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Sorting triggers
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Sort:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        listOf("Title", "Rating", "Year").forEach { opt ->
+                            val isSortSelected = sortOrder == opt
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = if (isSortSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.searchSortOrder.value = opt }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(opt, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isSortSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
+                    }
+
+                    // Available Copies Only switches
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text("Available Only", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Switch(
+                            checked = availOnly,
+                            onCheckedChange = { viewModel.searchFilterAvailability.value = it },
+                            modifier = Modifier.scale(0.7f).testTag("available_copies_switch")
+                        )
                     }
                 }
 
-                // Available Copies Only switches
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Category Chips Row
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
-                    Text("Available Only", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Switch(
-                        checked = availOnly,
-                        onCheckedChange = { viewModel.searchFilterAvailability.value = it },
-                        modifier = Modifier.scale(0.7f).testTag("available_copies_switch")
-                    )
-                }
-            }
-
-            // Category Chips Row
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(categories) { category ->
-                    val isSelected = selectedCategory == category
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.selectCategory(category) },
-                        label = { Text(category, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.testTag("category_chip_$category"),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
+                    items(categories) { category ->
+                        val isSelected = selectedCategory == category
+                        FilterChip(
                             selected = isSelected,
-                            enabled = true
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                            onClick = { viewModel.selectCategory(category) },
+                            label = { Text(category, fontWeight = FontWeight.Bold) },
+                            modifier = Modifier.testTag("category_chip_$category"),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                selected = isSelected,
+                                enabled = true
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
                 }
             }
-        }
 
-        // --- Role Based Dashboard Panels (Librarian/Teacher Management, Admins Analytics Diagrams) ---
-        AnimatedVisibility(
-            visible = currentRole != UserRole.STUDENT,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            RoleAdministrationDashboard(
-                role = currentRole,
-                viewModel = viewModel,
-                onAddBookClicked = { showAddBookDialog = true },
-                onAssignClicked = { showAssignDialog = true },
-                onOpenAdminPanel = { showAdminPanel = true }
-            )
-        }
-
-        // Books Grid / List container
-        if (books.isEmpty()) {
-            EmptyCatalogState()
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
+            // --- Role Based Dashboard Panels (Librarian/Teacher Management, Admins Analytics Diagrams) ---
+            AnimatedVisibility(
+                visible = currentRole != UserRole.STUDENT,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                items(books, key = { it.id }) { book ->
-                    val isCached = downloadCache.contains(book.id)
-                    BookListItemWithOffline(
-                        book = book,
-                        isCached = isCached,
-                        onSelect = { viewModel.selectBook(book.id) },
-                        onToggleFavorite = { viewModel.toggleFavorite(book.id, !book.isFavorite) },
-                        onToggleCache = { viewModel.toggleOfflineDownload(book.id) }
-                    )
+                RoleAdministrationDashboard(
+                    role = currentRole,
+                    viewModel = viewModel,
+                    onAddBookClicked = { showAddBookDialog = true },
+                    onAssignClicked = { showAssignDialog = true },
+                    onOpenAdminPanel = { showAdminPanel = true }
+                )
+            }
+
+            // Books Grid / List container
+            if (books.isEmpty()) {
+                EmptyCatalogState()
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(books, key = { it.id }) { book ->
+                        val isCached = downloadCache.contains(book.id)
+                        BookListItemWithOffline(
+                            book = book,
+                            isCached = isCached,
+                            onSelect = { viewModel.selectBook(book.id) },
+                            onToggleFavorite = { viewModel.toggleFavorite(book.id, !book.isFavorite) },
+                            onToggleCache = { viewModel.toggleOfflineDownload(book.id) }
+                        )
+                    }
                 }
             }
         }
