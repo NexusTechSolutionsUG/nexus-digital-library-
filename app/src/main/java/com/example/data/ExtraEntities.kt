@@ -62,3 +62,30 @@ data class ChatMessage(
     val attachmentName: String? = null,
     val attachmentMime: String? = null
 ) : Serializable
+
+// SaaS-Grade Administrative Entities
+data class UserModerationProfile(
+    val id: String,
+    val name: String,
+    val grade: String,
+    val status: String, // "Active", "Suspended", "Flagged"
+    val flaggedCount: Int,
+    val email: String
+) : Serializable
+
+data class OverdueItem(
+    val id: String,
+    val studentName: String,
+    val bookTitle: String,
+    val daysOverdue: Int,
+    val fineAccrued: Double,
+    val contactEmail: String
+) : Serializable
+
+data class SystemStorageMetric(
+    val category: String,
+    val sizeLabel: String,
+    val itemCount: Int,
+    val compressionRatio: String
+) : Serializable
+

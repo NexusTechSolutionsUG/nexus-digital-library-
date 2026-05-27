@@ -55,6 +55,28 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         AppNotification(3, "Daily Streak Goal", "Keep your 5-day reading streak alive! Open any companion book to play.", "5h ago", "goal")
     ))
 
+    // SaaS Administration States
+    val userModerationProfiles = MutableStateFlow<List<UserModerationProfile>>(listOf(
+        UserModerationProfile("u1", "Alex Rivera", "Grade 11", "Active", 0, "alex.rivera@oakridge.edu"),
+        UserModerationProfile("u2", "Marcus Chen", "Grade 12", "Flagged", 2, "marcus.chen@oakridge.edu"),
+        UserModerationProfile("u3", "Sarah Jenkins", "Grade 10", "Active", 0, "sarah.j@oakridge.edu"),
+        UserModerationProfile("u4", "Taylor Vance", "Grade 11", "Suspended", 5, "taylor.vance@oakridge.edu"),
+        UserModerationProfile("u5", "Emily Rodriguez", "Grade 12", "Active", 1, "emily.r@oakridge.edu")
+    ))
+
+    val overdueItems = MutableStateFlow<List<OverdueItem>>(listOf(
+        OverdueItem("ov1", "Marcus Chen", "To Kill a Mockingbird", 4, 2.00, "marcus.chen@oakridge.edu"),
+        OverdueItem("ov2", "Taylor Vance", "Macbeth", 9, 4.50, "taylor.vance@oakridge.edu"),
+        OverdueItem("ov3", "Jordan Blake", "1984", 2, 1.00, "jordan.b@oakridge.edu")
+    ))
+
+    val systemStorageMetrics = MutableStateFlow<List<SystemStorageMetric>>(listOf(
+        SystemStorageMetric("EPUB Books", "4.2 MB Cached (3 files)", 3, "2.1:1 Compressed"),
+        SystemStorageMetric("PDF Notes", "3.8 MB Cached (5 files)", 5, "1.8:1 Compressed"),
+        SystemStorageMetric("Video Lectures", "25.6 MB Cached (2 files)", 2, "3.5:1 Highly Compressed"),
+        SystemStorageMetric("Audio Companions", "12.1 MB Cached (3 files)", 3, "1.5:1 Standard")
+    ))
+
     // Advanced search variables
     val searchSortOrder = MutableStateFlow("Title") // Options: "Title", "Rating", "Year"
     val searchFilterAvailability = MutableStateFlow(false) // Toggle to show only available copies
@@ -134,6 +156,316 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    // ==========================================
+    // CLASS-BASED ACADEMIC CURRICULUM STATES
+    // ==========================================
+
+    val allAcademicSubjects = MutableStateFlow<List<Subject>>(listOf(
+        // S1 Subjects
+        Subject(
+            id = "s1-math",
+            name = "S1 Mathematics",
+            classLevel = AcademicClassLevel.S1,
+            teachers = listOf(TeacherProfile("t_lule", "Mr. Lule", "", "Mathematics", 14, 0, "m.lule@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s1-math-n1", "Prime Numbers & Factors Notes", ResourceCategory.NOTES, "450 KB", "Prime numbers are positive integers greater than 1 that only have factors 1 and itself.", "math_notes_prime", "Mr. Lule"),
+                AcademicResource("s1-math-t1", "Introductory Algebra Textbook", ResourceCategory.TEXTBOOKS, "12.5 MB", "Comprehensive guide covering variables, equations, coefficients and graphs.", "math_textbook_s1", "Mr. Lule")
+            ),
+            description = "High school introduction covering primes, integers, simple equations, operations and linear shapes."
+        ),
+        Subject(
+            id = "s1-ict",
+            name = "S1 General ICT",
+            classLevel = AcademicClassLevel.S1,
+            teachers = listOf(TeacherProfile("t_ss", "Mr. Ssewankambo", "", "ICT", 24, 1, "ss.ict@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s1-ict-n1", "Modern Computer Hardware Notes", ResourceCategory.NOTES, "850 KB", "Computer hardware consists of input, processing, storage memory and output channels.", "ict_hardware_notes", "Mr. Ssewankambo")
+            ),
+            description = "Foundational information technology skills, physical components and MS Office suite overview."
+        ),
+        
+        // S3 Subjects
+        Subject(
+            id = "s3-bio",
+            name = "S3 Biology",
+            classLevel = AcademicClassLevel.S3,
+            teachers = listOf(TeacherProfile("t_ala", "Ms. Alanyo", "", "Biology", 32, 2, "g.alanyo@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s3-bio-p1", "UNEB Past Paper 2022 Biology P1", ResourceCategory.PAST_PAPERS, "1.2 MB", "National final examinations covering aerobic cycles and photosynthesis charts.", "uneb_bio_2022_pdf", "Ms. Alanyo"),
+                AcademicResource("s3-bio-n1", "Cellular Respiration Teacher Handout", ResourceCategory.NOTES, "680 KB", "Active chemical conversion processes breaking down glucose for energy creation in human mitochondria.", "bio_notes_resp", "Ms. Alanyo"),
+                AcademicResource("s3-bio-d1", "Standard Animal Cell Diagram", ResourceCategory.DIAGRAMS, "1.8 MB", "Labeled schematic identifying Cell membrane, Nucleus, Ribosome, and Golgi complexes. Direct vector visual.", "diagram_animal_cell", "Ms. Alanyo"),
+                AcademicResource("s3-bio-v1", "Ecosystem Energy Pathways Lecture", ResourceCategory.VIDEOS, "18.2 MB", "A high-fidelity mini video lecture explaining thermodynamics and food pyramids.", "video_respiration_lecture", "Ms. Alanyo", 540)
+            ),
+            description = "Detailed cell components, enzymes catalysis, aerobic processes, ecosystems structure, and plant transport."
+        ),
+        Subject(
+            id = "s3-math",
+            name = "S3 Mathematics",
+            classLevel = AcademicClassLevel.S3,
+            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s3-math-n1", "Quadratics & Parabolic Functions Slides", ResourceCategory.NOTES, "510 KB", "Finding solutions of degree 2 equations using factorization methodology and general formula.", "math_notes_quadratics", "Mr. Okello"),
+                AcademicResource("s3-math-p1", "Oakridge Term 1 Practice Paper", ResourceCategory.PAST_PAPERS, "920 KB", "Algebraic fractions, coordinate planes intersecting, matrix transformations exercises.", "midterm_math_s3", "Mr. Okello")
+            ),
+            description = "Expanding standard algebra concepts, quadratic formulas, quadratic coordinates, and indices."
+        ),
+
+        // S4 Subjects
+        Subject(
+            id = "s4-math",
+            name = "S4 Mathematics",
+            classLevel = AcademicClassLevel.S4,
+            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s4-math-p1", "UNEB Final Exam 2023 Paper 1", ResourceCategory.PAST_PAPERS, "1.6 MB", "Complete official government-grade questions on trigonometry and standard matrices.", "uneb_math_2023_pdf", "Mr. Okello")
+            ),
+            description = "Candidate level integrations, descriptive statistics, vectors, coordinates geometries and circles."
+        ),
+
+        // S6 Subjects
+        Subject(
+            id = "s6-econ",
+            name = "S6 Economics (MEG/HEL)",
+            classLevel = AcademicClassLevel.S6,
+            teachers = listOf(TeacherProfile("t_nam", "Ms. Namusoke", "", "Economics", 38, 3, "f.namusoke@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s6-econ-n1", "Inflation & Business Cycles Notes", ResourceCategory.NOTES, "1.1 MB", "Macroeconomics trends detailing demand-pull versus cost-push inflationary pressure.", "econ_notes_inflation", "Ms. Namusoke"),
+                AcademicResource("s6-econ-p1", "UNEB S6 Pure Economics Paper 1", ResourceCategory.PAST_PAPERS, "2.4 MB", "High stakes essay items explaining central bank monetary policy controls.", "uneb_econ_s6_pdf", "Ms. Namusoke")
+            ),
+            description = "Macroeconomic modeling, inflation indexing, balance of trade balances and fiscal planning systems."
+        ),
+        Subject(
+            id = "s6-sub-ict",
+            name = "S6 Subsidiary ICT",
+            classLevel = AcademicClassLevel.S6,
+            teachers = listOf(TeacherProfile("t_ss", "Mr. Ssewankambo", "", "ICT", 24, 1, "ss.ict@oakridge.edu")),
+            resources = listOf(
+                AcademicResource("s6-ict-t1", "Subsidiary ICT Practice Handbook", ResourceCategory.TEXTBOOKS, "3.2 MB", "Advanced spreadsheet formulations, database modeling and systems integrity checklists.", "sub_ict_guide_s6", "Mr. Ssewankambo")
+            ),
+            description = "Computing systems troubleshooting, algorithms basics, simple databases and networking protocols."
+        )
+    ))
+
+    // Academic Navigation selections
+    val selectedClassLevel = MutableStateFlow(AcademicClassLevel.S3)
+    val selectedSubjectId = MutableStateFlow<String?>("s3-bio")
+    val selectedResourceCategory = MutableStateFlow<ResourceCategory?>(null) // null means "All"
+    val personalAssignedSubjectsOnly = MutableStateFlow(true) // Filter to student's assigned subjects (S3)
+
+    // Interactive study state triggers
+    val activeRevisionPlannerSlot = MutableStateFlow<String?>(null)
+    val showAIQuizSimulator = MutableStateFlow(false)
+    val showAISummaryPanel = MutableStateFlow(false)
+    val activeBookmarkedPages = MutableStateFlow<Set<String>>(emptySet()) // bookmarked resource items
+
+    // Study planners & countdowns
+    val offlineSavedResources = MutableStateFlow<Set<String>>(emptySet())
+    val examCountdownList = MutableStateFlow<List<ExamCountdown>>(listOf(
+        ExamCountdown("c1", "S3 End of Term Assessments", "June 15, 2026", 18),
+        ExamCountdown("c2", "S4 National UNEB Math P1", "October 20, 2026", 124),
+        ExamCountdown("c3", "S6 Final General Paper A-Level", "November 05, 2026", 140)
+    ))
+
+    val studyPlannerList = MutableStateFlow<List<StudyPlannerItem>>(listOf(
+        StudyPlannerItem("p1", "S3 Biology", "Review mitochondria diagram & markers", 45, "Sunday", false),
+        StudyPlannerItem("p2", "S3 Mathematics", "Practice solving quadratics worksheet", 30, "Wednesday", true),
+        StudyPlannerItem("p3", "S6 Economics", "ReadMs. Namusoke's inflation slides", 40, "Monday", false)
+    ))
+
+    val studyAnalytics = MutableStateFlow<List<AcademicUsageMetric>>(listOf(
+        AcademicUsageMetric("S3 Biology", 180, 0.85f, 12, System.currentTimeMillis() - 2 * 3600 * 1000),
+        AcademicUsageMetric("S3 Mathematics", 120, 0.70f, 6, System.currentTimeMillis() - 4 * 3600 * 1000),
+        AcademicUsageMetric("S6 Economics", 90, 0.50f, 4, System.currentTimeMillis() - 24 * 3600 * 1000),
+        AcademicUsageMetric("S1 General ICT", 40, 0.95f, 3, System.currentTimeMillis() - 48 * 3600 * 1000)
+    ))
+
+    // Interactive quiz simulations
+    val currentQuizQuestions = MutableStateFlow<List<RevisionQuestion>>(listOf(
+        RevisionQuestion("q1", "Which of the following cellular components is called the powerhouse of the cell?", listOf("Ribosome", "Chloroplast", "Mitochondrion", "Lysosome"), 2, "Mitochondria produce cellular ATP through the citric acid cycle."),
+        RevisionQuestion("q2", "In biology, what primary process is responsible for producing energy without oxygen?", listOf("Aerobic respiration", "Anaerobic respiration", "Photosynthesis", "Catalysis"), 1, "Anaerobic respiration converts glucose into energy/lactic acid in the absence of oxygen."),
+        RevisionQuestion("q3", "What is the green photosynthetic pigment found inside chloroplast organelles?", listOf("Carotene", "Chlorophyll", "Xanthophyll", "Anthocyanin"), 1, "Chlorophyll absorbs red and blue light spectra for carbon fixation reaction chains.")
+    ))
+    val currentQuizIndex = MutableStateFlow(0)
+    val currentQuizScore = MutableStateFlow(0)
+    val selectedQuizAnswerIndex = MutableStateFlow<Int?>(null)
+    val quizCompletedStatus = MutableStateFlow(false)
+
+    // Interactive flashcards S3 Bio
+    val activeFlashcardList = MutableStateFlow<List<StudyFlashcard>>(listOf(
+        StudyFlashcard("f1", "What does plant cell wall consist of?", "Cellulose provides mechanical structure & rigour."),
+        StudyFlashcard("f2", "Which organelle carries out photolysis of water molecules?", "Thylakoid membranes inside the chloroplast, powered by photons."),
+        StudyFlashcard("f3", "What biological catalysts speed up key internal body reactions?", "Enzymes that fit specific substrates into active sites under precise thermal range."),
+        StudyFlashcard("f4", "Name the cellular sugar compound manufactured during carbon fixation?", "Glucose which is polymerised into starch storage molecules.")
+    ))
+
+    // Subject discussion threads map
+    val subjectDiscussionForum = MutableStateFlow<List<ForumPost>>(listOf(
+        ForumPost("fm1", "Sarah Jenkins", "STUDENT", "#0F766E", "Ms. Alanyo, can we get the marking guide for the 2022 past paper?", 15),
+        ForumPost("fm2", "Ms. Alanyo", "TEACHER", "#0284C7", "Hi Sarah! I am compiling the marking guide with custom vectors. Stay tuned tonight!", 10),
+        ForumPost("fm3", "Alex Rivera", "STUDENT", "#6366F1", "Thanks Ms. Alanyo! Reviewing the glycolysis diagrams now.", 2)
+    ))
+
+    // Selected Resource Details (PDF document simulated overlay)
+    val activeAcademicResource = MutableStateFlow<AcademicResource?>(null)
+
+    // --- ACADEMIC OPERATIONS ---
+
+    fun selectAcademicClass(classLevel: AcademicClassLevel) {
+        selectedClassLevel.value = classLevel
+        // Automatically default first matching subject
+        val firstSub = allAcademicSubjects.value.firstOrNull { it.classLevel == classLevel }
+        selectedSubjectId.value = firstSub?.id
+        selectedResourceCategory.value = null
+        addNotification("Class Selected", "Viewing curriculum materials for ${classLevel.label}.", "announcement")
+    }
+
+    fun selectAcademicSubject(subjId: String) {
+        selectedSubjectId.value = subjId
+        selectedResourceCategory.value = null
+        // Trigger simulation of analytics log
+        val subjectName = allAcademicSubjects.value.find { it.id == subjId }?.name ?: "Curriculum"
+        studyAnalytics.value = studyAnalytics.value.map {
+            if (it.subjectName == subjectName) {
+                it.copy(
+                    studyDurationMinutes = it.studyDurationMinutes + 5,
+                    resourcesOpenedCount = it.resourcesOpenedCount + 1,
+                    lastAccessedTimestamp = System.currentTimeMillis()
+                )
+            } else it
+        }
+    }
+
+    fun toggleOfflineSavedResource(resourceId: String) {
+        val current = offlineSavedResources.value
+        if (current.contains(resourceId)) {
+            offlineSavedResources.value = current - resourceId
+            addNotification("Resource Offline Removed", "Deleted item $resourceId from local cache storage.", "goal")
+        } else {
+            offlineSavedResources.value = current + resourceId
+            addNotification("Downloaded Offline", "Saved companion file to secure offline space. 100% accessible anywhere.", "goal")
+        }
+    }
+
+    fun selectAcademicResource(res: AcademicResource?) {
+        activeAcademicResource.value = res
+        if (res != null) {
+            // Toast / Notification trigger and analytics addition
+            val trackName = allAcademicSubjects.value.find { subj -> 
+                subj.resources.any { it.id == res.id }
+            }?.name ?: "Curriculum Core"
+            
+            studyAnalytics.value = studyAnalytics.value.map {
+                if (it.subjectName == trackName) {
+                    it.copy(
+                        resourcesOpenedCount = it.resourcesOpenedCount + 1,
+                        lastAccessedTimestamp = System.currentTimeMillis()
+                    )
+                } else it
+            }
+        }
+    }
+
+    fun submitQuizAnswer(choiceIndex: Int) {
+        selectedQuizAnswerIndex.value = choiceIndex
+        val activeQ = currentQuizQuestions.value.getOrNull(currentQuizIndex.value)
+        if (activeQ != null && choiceIndex == activeQ.correctIndex) {
+            currentQuizScore.value = currentQuizScore.value + 1
+        }
+    }
+
+    fun advanceQuizQuestion() {
+        val nextIdx = currentQuizIndex.value + 1
+        if (nextIdx < currentQuizQuestions.value.size) {
+            currentQuizIndex.value = nextIdx
+            selectedQuizAnswerIndex.value = null
+        } else {
+            quizCompletedStatus.value = true
+            // Complete assignment notification integration
+            addNotification("Academic Quiz Finalized", "Scored ${currentQuizScore.value}/${currentQuizQuestions.value.size} points on the interactive biology module.", "goal")
+        }
+    }
+
+    fun resetQuizModule() {
+        currentQuizIndex.value = 0
+        currentQuizScore.value = 0
+        selectedQuizAnswerIndex.value = null
+        quizCompletedStatus.value = false
+    }
+
+    fun addPlannerTask(subj: String, topic: String, minutes: Int, scheduledDay: String) {
+        val newItem = StudyPlannerItem(
+            id = "planned_${System.currentTimeMillis()}",
+            subjectName = subj,
+            topicToCover = topic,
+            targetMinutes = minutes,
+            scheduledDay = scheduledDay,
+            isDone = false
+        )
+        studyPlannerList.value = studyPlannerList.value + newItem
+        addNotification("Revision Planner Created", "Added $topic to $scheduledDay study schedule ($minutes mins).", "goal")
+    }
+
+    fun togglePlannerTaskCompletion(id: String) {
+        studyPlannerList.value = studyPlannerList.value.map {
+            if (it.id == id) {
+                val nextState = !it.isDone
+                if (nextState) {
+                    // Update analytics study time!
+                    studyAnalytics.value = studyAnalytics.value.map { stat ->
+                        if (stat.subjectName == it.subjectName) {
+                            stat.copy(
+                                studyDurationMinutes = stat.studyDurationMinutes + it.targetMinutes,
+                                completeAssignmentsRatio = (stat.completeAssignmentsRatio + 0.05f).coerceIn(0f, 1.0f)
+                            )
+                        } else stat
+                    }
+                    addNotification("Goal Reached!", "Earned ${it.targetMinutes} minutes study bonus on ${it.subjectName}.", "goal")
+                }
+                it.copy(isDone = nextState)
+            } else it
+        }
+    }
+
+    fun addForumMessage(subjId: String, text: String) {
+        if (text.isNotBlank()) {
+            val newMsg = ForumPost(
+                id = "fm_${System.currentTimeMillis()}",
+                userName = studentName.value,
+                userRole = "STUDENT",
+                avatarColorHex = "#4F46E5",
+                messageText = text,
+                minutesAgo = 0
+            )
+            subjectDiscussionForum.value = subjectDiscussionForum.value + newMsg
+        }
+    }
+
+    // AI summary simulation per subject
+    val simulatedAISummaryResult = MutableStateFlow<String?>(null)
+    val generatorLoading = MutableStateFlow(false)
+
+    fun generateAISubjectSummary(subjName: String) {
+        viewModelScope.launch {
+            generatorLoading.value = true
+            simulatedAISummaryResult.value = null
+            kotlinx.coroutines.delay(1200) // simulated network delay
+            simulatedAISummaryResult.value = """
+                **AI REVISION CO-PILOT CRASH SUMMARY — $subjName**
+                
+                1. **High Yield Syllabus Core**:
+                   Focus intensively on basic mechanism structures, enzymatic reaction formulas and regulatory feedback loop matrices. Past UNEB papers indicate standard questions (65%) target comparative diagrams.
+                
+                2. **Common Culprit Misunderstandings**:
+                   - Confusing cellular respiration inputs with photosynthetic gas exchange coefficients.
+                   - Failing to justify total structural surface area-to-volume ratio scaling limitations.
+                   
+                3. **Active Exam Action Points**:
+                   Practice labeling diagrams under 3 minutes. Memorize secondary catalyst thermal threshold conditions ($subjName - optimal: 37.5°C).
+            """.trimIndent()
+            generatorLoading.value = false
+        }
+    }
 
     // User Actions
     fun updateSearchQuery(query: String) {
@@ -488,5 +820,72 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearNotifications() {
         appNotifications.value = emptyList()
+    }
+
+    // --- SaaS Admin Operations ---
+    fun updateUserStatus(id: String, status: String) {
+        userModerationProfiles.value = userModerationProfiles.value.map {
+            if (it.id == id) it.copy(status = status) else it
+        }
+        addNotification("User Moderated", "Updated status of user to $status.", "announcement")
+    }
+
+    fun addNewBookCopy(bookId: String) {
+        viewModelScope.launch {
+            val list = books.value
+            list.find { it.id == bookId }?.let { book ->
+                val updatedCopies = book.availableCopies + 1
+                val updatedTotal = book.totalCopies + 1
+                repository.updateBookCopies(bookId, updatedCopies, updatedTotal)
+                addNotification("Inventory Expanded", "Increased stock for ${book.title}.", "announcement")
+            }
+        }
+    }
+
+    fun flagBookDamage(bookId: String) {
+        viewModelScope.launch {
+            val list = books.value
+            list.find { it.id == bookId }?.let { book ->
+                if (book.availableCopies > 0) {
+                    val updatedCopies = book.availableCopies - 1
+                    repository.updateBookCopies(bookId, updatedCopies, book.totalCopies)
+                    addNotification("Inventory Report", "Flagged 1 copy of ${book.title} as damaged/removed.", "announcement")
+                }
+            }
+        }
+    }
+
+    fun triggerOverdueWarning(overdueId: String) {
+        val alert = overdueItems.value.find { it.id == overdueId }
+        if (alert != null) {
+            addNotification(
+                "Warning Dispatched",
+                "Sent immediate overdue push notification and fine reminder ($${String.format(java.util.Locale.US, "%.2f", alert.fineAccrued)}) to ${alert.studentName}.",
+                "due_date"
+            )
+        }
+    }
+
+    fun runStorageCleanup() {
+        viewModelScope.launch {
+            systemStorageMetrics.value = systemStorageMetrics.value.map {
+                it.copy(sizeLabel = "0 B (Cleaned)", itemCount = 0)
+            }
+            downloadCacheDownloaded.value = emptySet()
+            addNotification("Storage Cleanup", "Emptied student companion cache files completely.", "goal")
+        }
+    }
+
+    fun compressMediaFiles() {
+        viewModelScope.launch {
+            systemStorageMetrics.value = systemStorageMetrics.value.map {
+                val currentSize = it.sizeLabel.substringBefore(" MB").toDoubleOrNull() ?: 2.0
+                it.copy(
+                    sizeLabel = "${String.format(java.util.Locale.US, "%.1f", currentSize / 2.5)} MB",
+                    compressionRatio = "4.0:1 (Ultra Compressed)"
+                )
+            }
+            addNotification("Media Compression", "Downsampled video lectures and applied aggressive JPEG layout compression across materials.", "announcement")
+        }
     }
 }

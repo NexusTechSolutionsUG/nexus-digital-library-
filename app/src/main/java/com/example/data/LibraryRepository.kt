@@ -26,6 +26,13 @@ class LibraryRepository(private val libraryDao: LibraryDao) {
         libraryDao.insertBook(book)
     }
 
+    suspend fun updateBookCopies(bookId: String, available: Int, total: Int) = withContext(Dispatchers.IO) {
+        val book = libraryDao.getBookById(bookId)
+        if (book != null) {
+            libraryDao.insertBook(book.copy(availableCopies = available, totalCopies = total))
+        }
+    }
+
     suspend fun toggleFavorite(bookId: String, isFavorite: Boolean) = withContext(Dispatchers.IO) {
         libraryDao.updateFavorite(bookId, isFavorite)
     }
