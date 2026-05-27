@@ -48,64 +48,72 @@ fun LibraryDashboard(viewModel: LibraryViewModel) {
     var selectedTab by remember { mutableStateOf(0) }
     val studentName by viewModel.studentName.collectAsState()
     val readingStreak by viewModel.readingStreak.collectAsState()
+    val activeViewerBookId by viewModel.activeViewerBookId.collectAsState()
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            NavigationBar(
-                modifier = Modifier
-                    .shadow(8.dp)
-                    .testTag("bottom_nav_bar"),
-                containerColor = MaterialTheme.colorScheme.background,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    icon = { Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Catalog") },
-                    label = { Text("Catalog", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    modifier = Modifier.testTag("tab_catalog")
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.AutoStories, contentDescription = "My Books") },
-                    label = { Text("My Books", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    modifier = Modifier.testTag("tab_my_books")
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Campaign, contentDescription = "News") },
-                    label = { Text("News", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    modifier = Modifier.testTag("tab_news")
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.ContactMail, contentDescription = "Profile") },
-                    label = { Text("ID Card", fontWeight = FontWeight.SemiBold) },
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    modifier = Modifier.testTag("tab_profile")
-                )
+    if (activeViewerBookId != null) {
+        UniversalFileViewerScreen(
+            viewModel = viewModel,
+            onClose = { viewModel.closeBookViewer() }
+        )
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            bottomBar = {
+                NavigationBar(
+                    modifier = Modifier
+                        .shadow(8.dp)
+                        .testTag("bottom_nav_bar"),
+                    containerColor = MaterialTheme.colorScheme.background,
+                    tonalElevation = 8.dp
+                ) {
+                    NavigationBarItem(
+                        icon = { Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Catalog") },
+                        label = { Text("Catalog", fontWeight = FontWeight.SemiBold) },
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        modifier = Modifier.testTag("tab_catalog")
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.AutoStories, contentDescription = "My Books") },
+                        label = { Text("My Books", fontWeight = FontWeight.SemiBold) },
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        modifier = Modifier.testTag("tab_my_books")
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Campaign, contentDescription = "News") },
+                        label = { Text("News", fontWeight = FontWeight.SemiBold) },
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        modifier = Modifier.testTag("tab_news")
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.ContactMail, contentDescription = "Profile") },
+                        label = { Text("ID Card", fontWeight = FontWeight.SemiBold) },
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 },
+                        modifier = Modifier.testTag("tab_profile")
+                    )
+                }
             }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            // High School Header Row
-            SchoolHeaderPanel(studentName, readingStreak)
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                // High School Header Row
+                SchoolHeaderPanel(studentName, readingStreak)
 
-            // Dynamic view based on tab index
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (selectedTab) {
-                    0 -> CatalogTab(viewModel)
-                    1 -> MyBooksTab(viewModel)
-                    2 -> CampusNewsTab(viewModel)
-                    3 -> StudentCardTab(viewModel)
+                // Dynamic view based on tab index
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (selectedTab) {
+                        0 -> CatalogTab(viewModel)
+                        1 -> MyBooksTab(viewModel)
+                        2 -> CampusNewsTab(viewModel)
+                        3 -> StudentCardTab(viewModel)
+                    }
                 }
             }
         }
@@ -570,8 +578,28 @@ fun BookDetailDialog(viewModel: LibraryViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Virtual In-App material reader direct preview button
+                            Button(
+                                onClick = {
+                                    viewModel.openBookInViewer(currentBook.id)
+                                    viewModel.selectBook(null) // dismiss spec dialog
+                                },
+                                modifier = Modifier
+                                    .testTag("in_app_viewer_dialog_shortcut_btn")
+                                    .height(48.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AcademicGoldText,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(Icons.Default.MenuBook, contentDescription = "Preview online resources")
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Preview Companion", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
                             if (isAlreadyBorrowed) {
                                 Button(
                                     onClick = { },
@@ -586,7 +614,7 @@ fun BookDetailDialog(viewModel: LibraryViewModel) {
                                 ) {
                                     Icon(Icons.Default.Check, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Currently Borrowed")
+                                    Text("Currently Borrowed", fontSize = 11.sp)
                                 }
                             } else {
                                 Button(
@@ -611,8 +639,9 @@ fun BookDetailDialog(viewModel: LibraryViewModel) {
                                     Icon(Icons.Default.BookmarkAdd, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = if (currentBook.availableCopies > 0) "Borrow Virtually (14 days)" else "No Copies Available",
-                                        fontWeight = FontWeight.Bold
+                                        text = if (currentBook.availableCopies > 0) "Borrow (14d)" else "No Copies",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }
@@ -1013,7 +1042,8 @@ fun MyBooksTab(viewModel: LibraryViewModel) {
                 ActiveCheckoutItem(
                     record = record,
                     onReturn = { viewModel.returnBookRecord(record) },
-                    onProgressChange = { progress -> viewModel.updateRecordProgress(record, progress) }
+                    onProgressChange = { progress -> viewModel.updateRecordProgress(record, progress) },
+                    onOpenResources = { viewModel.openBookInViewer(record.bookId) }
                 )
             }
         }
@@ -1043,7 +1073,8 @@ fun MyBooksTab(viewModel: LibraryViewModel) {
 fun ActiveCheckoutItem(
     record: BorrowRecord,
     onReturn: () -> Unit,
-    onProgressChange: (Int) -> Unit
+    onProgressChange: (Int) -> Unit,
+    onOpenResources: () -> Unit
 ) {
     val formatter = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
     val dueStr = formatter.format(Date(record.dueDate))
@@ -1129,8 +1160,29 @@ fun ActiveCheckoutItem(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Interactive Digital Companion Opening Button
+                Button(
+                    onClick = onOpenResources,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AcademicGoldText, // high contrast gold text color
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.testTag("open_materials_${record.bookId}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = "Read",
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Read & Play Companion", fontWeight = FontWeight.Black, fontSize = 11.sp)
+                }
+
                 TextButton(
                     onClick = onReturn,
                     modifier = Modifier.testTag("return_button_${record.bookId}"),

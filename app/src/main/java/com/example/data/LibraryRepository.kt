@@ -316,4 +316,46 @@ class LibraryRepository(private val libraryDao: LibraryDao) {
             libraryDao.insertReview(rev)
         }
     }
+
+    // --- NEW VIEWER REPOSITORY API ---
+
+    fun getReadingProgressFlow(bookId: String): Flow<ReadingProgress?> = libraryDao.getReadingProgressFlow(bookId)
+
+    suspend fun getReadingProgress(bookId: String): ReadingProgress? = withContext(Dispatchers.IO) {
+        libraryDao.getReadingProgress(bookId)
+    }
+
+    suspend fun saveReadingProgress(progress: ReadingProgress) = withContext(Dispatchers.IO) {
+        libraryDao.insertReadingProgress(progress)
+    }
+
+    fun getBookmarksForBook(bookId: String): Flow<List<BookBookmark>> = libraryDao.getBookmarksForBook(bookId)
+
+    suspend fun addBookmark(bookmark: BookBookmark) = withContext(Dispatchers.IO) {
+        libraryDao.insertBookmark(bookmark)
+    }
+
+    suspend fun deleteBookmark(id: Int) = withContext(Dispatchers.IO) {
+        libraryDao.deleteBookmark(id)
+    }
+
+    fun getHighlightsForBook(bookId: String): Flow<List<BookHighlight>> = libraryDao.getHighlightsForBook(bookId)
+
+    suspend fun addHighlight(highlight: BookHighlight) = withContext(Dispatchers.IO) {
+        libraryDao.insertHighlight(highlight)
+    }
+
+    suspend fun deleteHighlight(id: Int) = withContext(Dispatchers.IO) {
+        libraryDao.deleteHighlight(id)
+    }
+
+    fun getAnnotationsForBook(bookId: String): Flow<List<BookAnnotation>> = libraryDao.getAnnotationsForBook(bookId)
+
+    suspend fun addAnnotation(annotation: BookAnnotation) = withContext(Dispatchers.IO) {
+        libraryDao.insertAnnotation(annotation)
+    }
+
+    suspend fun deleteAnnotation(id: Int) = withContext(Dispatchers.IO) {
+        libraryDao.deleteAnnotation(id)
+    }
 }

@@ -9,6 +9,7 @@ val ScholasticNavyDark = Color(0xFF172554)
 
 val AcademicGold = Color(0xFFD97706)
 val AcademicGoldLight = Color(0xFFFBBF24)
+val AcademicGoldText = Color(0xFFB45309)
 
 val SageGreen = Color(0xFF0F766E)
 

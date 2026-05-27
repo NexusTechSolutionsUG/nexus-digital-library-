@@ -6,8 +6,17 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [Book::class, BorrowRecord::class, BookReview::class, Announcement::class],
-    version = 1,
+    entities = [
+        Book::class, 
+        BorrowRecord::class, 
+        BookReview::class, 
+        Announcement::class,
+        ReadingProgress::class,
+        BookBookmark::class,
+        BookHighlight::class,
+        BookAnnotation::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class LibraryDatabase : RoomDatabase() {

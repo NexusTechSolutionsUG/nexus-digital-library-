@@ -65,4 +65,43 @@ interface LibraryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAnnouncement(announcement: Announcement)
+
+    // --- NEW VIEWER OPERATIONS ---
+
+    @Query("SELECT * FROM reading_progress WHERE bookId = :bookId LIMIT 1")
+    fun getReadingProgressFlow(bookId: String): Flow<ReadingProgress?>
+
+    @Query("SELECT * FROM reading_progress WHERE bookId = :bookId LIMIT 1")
+    suspend fun getReadingProgress(bookId: String): ReadingProgress?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReadingProgress(progress: ReadingProgress)
+
+    @Query("SELECT * FROM book_bookmarks WHERE bookId = :bookId ORDER BY page ASC")
+    fun getBookmarksForBook(bookId: String): Flow<List<BookBookmark>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookmark(bookmark: BookBookmark)
+
+    @Query("DELETE FROM book_bookmarks WHERE id = :id")
+    suspend fun deleteBookmark(id: Int)
+
+    @Query("SELECT * FROM book_highlights WHERE bookId = :bookId ORDER BY page ASC, timestamp DESC")
+    fun getHighlightsForBook(bookId: String): Flow<List<BookHighlight>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHighlight(highlight: BookHighlight)
+
+    @Query("DELETE FROM book_highlights WHERE id = :id")
+    suspend fun deleteHighlight(id: Int)
+
+    @Query("SELECT * FROM book_annotations WHERE bookId = :bookId ORDER BY page ASC")
+    fun getAnnotationsForBook(bookId: String): Flow<List<BookAnnotation>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAnnotation(annotation: BookAnnotation)
+
+    @Query("DELETE FROM book_annotations WHERE id = :id")
+    suspend fun deleteAnnotation(id: Int)
 }
+

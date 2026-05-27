@@ -49,3 +49,45 @@ data class Announcement(
     val date: String,
     val isPinned: Boolean = false
 ) : Serializable
+
+// --- NEW VIEWER ENTITIES ---
+
+@Entity(tableName = "reading_progress")
+data class ReadingProgress(
+    @PrimaryKey val bookId: String,
+    val lastPage: Int,
+    val totalPages: Int = 50,
+    val scrollOffset: Float = 0f,
+    val lastReadTime: Long = System.currentTimeMillis()
+) : Serializable
+
+@Entity(tableName = "book_bookmarks")
+data class BookBookmark(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val bookId: String,
+    val page: Int,
+    val note: String,
+    val timestamp: Long = System.currentTimeMillis()
+) : Serializable
+
+@Entity(tableName = "book_highlights")
+data class BookHighlight(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val bookId: String,
+    val page: Int,
+    val text: String,
+    val colorHex: String, // e.g., "#FFEB3B" (Yellow), "#8BC34A" (Green), etc.
+    val note: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+) : Serializable
+
+@Entity(tableName = "book_annotations")
+data class BookAnnotation(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val bookId: String,
+    val page: Int,
+    val drawStrokesJson: String, // SVG or custom JSON strokes listing
+    val typedNote: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+) : Serializable
+

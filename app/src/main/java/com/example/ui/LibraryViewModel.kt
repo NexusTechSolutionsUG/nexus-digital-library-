@@ -158,4 +158,111 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         if (name.isNotBlank()) studentName.value = name
         if (id.isNotBlank()) studentId.value = id
     }
+
+    // --- NEW VIEWER FLOWS & ACTIONS ---
+    val activeViewerBookId = MutableStateFlow<String?>(null)
+
+    val activeViewingBook: StateFlow<Book?> = activeViewerBookId.flatMapLatest { id ->
+        if (id != null) repository.getBookById(id) else flowOf(null)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    val activeBookProgress: StateFlow<ReadingProgress?> = activeViewerBookId.flatMapLatest { id ->
+        if (id != null) repository.getReadingProgressFlow(id) else flowOf(null)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    val bookmarksForActiveBook: StateFlow<List<BookBookmark>> = activeViewerBookId.flatMapLatest { id ->
+        if (id != null) repository.getBookmarksForBook(id) else flowOf(emptyList())
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val highlightsForActiveBook: StateFlow<List<BookHighlight>> = activeViewerBookId.flatMapLatest { id ->
+        if (id != null) repository.getHighlightsForBook(id) else flowOf(emptyList())
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val annotationsForActiveBook: StateFlow<List<BookAnnotation>> = activeViewerBookId.flatMapLatest { id ->
+        if (id != null) repository.getAnnotationsForBook(id) else flowOf(emptyList())
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun openBookInViewer(bookId: String) {
+        activeViewerBookId.value = bookId
+    }
+
+    fun closeBookViewer() {
+        activeViewerBookId.value = null
+    }
+
+    fun savePageProgress(bookId: String, page: Int, totalPages: Int) {
+        viewModelScope.launch {
+            val progress = ReadingProgress(
+                bookId = bookId,
+                lastPage = page,
+                totalPages = totalPages,
+                lastReadTime = System.currentTimeMillis()
+            )
+            repository.saveReadingProgress(progress)
+            
+            // Sync with physical borrow record if exists
+            val activeRecords = activeBorrowRecords.value
+            val currentRecord = activeRecords.find { it.bookId == bookId }
+            if (currentRecord != null) {
+                val percentage = ((page.toFloat() / totalPages) * 100).toInt().coerceIn(0, 100)
+                updateRecordProgress(currentRecord, percentage)
+            }
+        }
+    }
+
+    fun addBookmark(bookId: String, page: Int, note: String) {
+        viewModelScope.launch {
+            repository.addBookmark(BookBookmark(bookId = bookId, page = page, note = note))
+        }
+    }
+
+    fun deleteBookmark(id: Int) {
+        viewModelScope.launch {
+            repository.deleteBookmark(id)
+        }
+    }
+
+    fun addHighlight(bookId: String, page: Int, text: String, colorHex: String) {
+        viewModelScope.launch {
+            repository.addHighlight(BookHighlight(bookId = bookId, page = page, text = text, colorHex = colorHex))
+        }
+    }
+
+    fun deleteHighlight(id: Int) {
+        viewModelScope.launch {
+            repository.deleteHighlight(id)
+        }
+    }
+
+    fun addAnnotation(bookId: String, page: Int, strokesJson: String, typedNote: String) {
+        viewModelScope.launch {
+            repository.addAnnotation(BookAnnotation(bookId = bookId, page = page, drawStrokesJson = strokesJson, typedNote = typedNote))
+        }
+    }
+
+    fun deleteAnnotation(id: Int) {
+        viewModelScope.launch {
+            repository.deleteAnnotation(id)
+        }
+    }
 }
