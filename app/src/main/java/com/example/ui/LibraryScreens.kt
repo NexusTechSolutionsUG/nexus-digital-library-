@@ -19,6 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -3567,8 +3570,9 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
     val selectedSubjectId by viewModel.selectedSubjectId.collectAsState()
     val personalFilter by viewModel.personalAssignedSubjectsOnly.collectAsState()
     val allSubjects by viewModel.allAcademicSubjects.collectAsState()
+    val curriculumActiveTab by viewModel.curriculumActiveTab.collectAsState()
     
-    // Derived filtering based on personalized assigned class (Alex Rivera is assigned S3 / Grade 11)
+    // Derived filtering based on personalized assigned class
     val filteredSubjects = if (personalFilter) {
         allSubjects.filter { it.classLevel == AcademicClassLevel.S3 }
     } else {
@@ -3589,9 +3593,51 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
             AcademicInteractiveHeroHeader(viewModel)
         }
 
-        // CLASS LEVEL SELECTOR & PERSONAL CHIP COMBOS
+        // DYNAMIC ACADEMIC TABS BAR (REVISION / MOCK EXAM SIMULATOR / LEADERBOARD ACHIEVEMENTS)
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            TabRow(
+                selectedTabIndex = curriculumActiveTab,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                contentColor = MaterialTheme.colorScheme.primary,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[curriculumActiveTab]),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Transparent)
+                    .padding(vertical = 4.dp)
+            ) {
+                Tab(
+                    selected = curriculumActiveTab == 0,
+                    onClick = { viewModel.curriculumActiveTab.value = 0 },
+                    text = { Text("Revision Workspace", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                    modifier = Modifier.testTag("curric_tab_revision")
+                )
+                Tab(
+                    selected = curriculumActiveTab == 1,
+                    onClick = { viewModel.curriculumActiveTab.value = 1 },
+                    text = { Text("UNEB Trial Mock", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                    modifier = Modifier.testTag("curric_tab_uneb")
+                )
+                Tab(
+                    selected = curriculumActiveTab == 2,
+                    onClick = { viewModel.curriculumActiveTab.value = 2 },
+                    text = { Text("Gamified Levels", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.EmojiEvents, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                    modifier = Modifier.testTag("curric_tab_gamified")
+                )
+            }
+        }
+
+        if (curriculumActiveTab == 0) {
+            // CLASS LEVEL SELECTOR & PERSONAL CHIP COMBOS
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -3810,6 +3856,16 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
         // REAL-TIME COMPLIANCE ANALYTICS METER
         item {
             AcademicRealTimeAnalyticsDashboard(viewModel)
+        }
+
+        } else if (curriculumActiveTab == 1) {
+            item {
+                UNEBExamEngineCardWorkspace(viewModel)
+            }
+        } else {
+            item {
+                UgandanScholarGamificationHub(viewModel)
+            }
         }
 
         // FUTURE SCALABILITY SCRATCHPAD
@@ -4564,6 +4620,113 @@ fun AcademicUniversalReaderOverlay(viewModel: LibraryViewModel, resource: Academ
 
                 Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
 
+                // AUDEN AUDIO VOICE BAR NATIVE SPEECH SYNTHESIS ENGINE
+                val isTtsActive by viewModel.isTtsActive.collectAsState()
+                val activeTtsRes by viewModel.activeTtsResource.collectAsState()
+                val ttsSpeed by viewModel.ttsSpeed.collectAsState()
+                val cachedSet by viewModel.offlineAudioCachedSet.collectAsState()
+                val isScribbleSpeech = activeTtsRes == resource.id
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (isTtsActive && isScribbleSpeech) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                if (isTtsActive && isScribbleSpeech) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                else MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+                            ),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (isTtsActive && isScribbleSpeech) {
+                                    viewModel.pauseOrStopSpeaking()
+                                } else {
+                                    viewModel.startSpeakingNotes(
+                                        resource.id,
+                                        resource.title + ". " + resource.contentSnippet
+                                    )
+                                }
+                            },
+                            modifier = Modifier.size(32.dp).testTag("tts_play_btn")
+                        ) {
+                            Icon(
+                                imageVector = if (isTtsActive && isScribbleSpeech) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                                contentDescription = "Listen Mode",
+                                tint = if (isTtsActive && isScribbleSpeech) MaterialTheme.colorScheme.primary else Color.Gray,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        Column {
+                            Text(
+                                "Listen Mode Voice Narration™",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isTtsActive && isScribbleSpeech) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                if (isTtsActive && isScribbleSpeech) "Reading notes aloud at ${ttsSpeed}x..." else "Listen offline or adjust speed",
+                                fontSize = 8.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val nextSpeed = when (ttsSpeed) {
+                                    1.0f -> 1.5f
+                                    1.5f -> 2.0f
+                                    2.0f -> 0.75f
+                                    else -> 1.0f
+                                }
+                                viewModel.adjustTTSSpeed(nextSpeed)
+                            },
+                            modifier = Modifier.size(28.dp).testTag("tts_speed_btn")
+                        ) {
+                            Text(
+                                text = "${ttsSpeed}x",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        val isCached = cachedSet.contains(resource.id)
+                        IconButton(
+                            onClick = { viewModel.toggleOfflineAudioCache(resource.id) },
+                            modifier = Modifier.size(28.dp).testTag("tts_cache_btn")
+                        ) {
+                            Icon(
+                                imageVector = if (isCached) Icons.Default.CloudDone else Icons.Default.CloudDownload,
+                                contentDescription = "Cache Audio",
+                                tint = if (isCached) Color(0xFF10B981) else Color.Gray,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
                 // Control widgets Zoom-in/Zoom-out
                 Row(
                     modifier = Modifier
@@ -4947,6 +5110,975 @@ fun AcademicFutureScalabilityPortal(viewModel: LibraryViewModel) {
                         Text("Live online classes schedule and teacher attendance logs.", fontSize = 7.sp, color = Color.Gray)
                     }
                 }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// DESIGN CORE: REALISTIC TIMED UNEB PAST PAPER EXAMINATION SUITE
+// =========================================================================
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun UNEBExamEngineCardWorkspace(viewModel: LibraryViewModel) {
+    val examActive by viewModel.unebExamActive.collectAsState()
+    val examSubmitted by viewModel.unebExamSubmitted.collectAsState()
+    val timeRemaining by viewModel.unebExamTimeSeconds.collectAsState()
+    val randomized by viewModel.unebQuestionsRandomized.collectAsState()
+    val selectedClass by viewModel.selectedExamClassLevel.collectAsState()
+    val selectedSubject by viewModel.selectedExamSubjectName.collectAsState()
+    val selectedYear by viewModel.selectedExamYearString.collectAsState()
+    val questions by viewModel.unebCurrentQuestions.collectAsState()
+    val userAnswers by viewModel.unebUserAnswers.collectAsState()
+    val history by viewModel.unebSubmittedHistory.collectAsState()
+
+    val lastScore by viewModel.unebLastScore.collectAsState()
+    val lastDivision by viewModel.unebLastDivision.collectAsState()
+    val essayText by viewModel.unebEssayText.collectAsState()
+    val essayAIScore by viewModel.unebEssayAIScore.collectAsState()
+    val essayFeedback by viewModel.unebEssayAIFeedback.collectAsState()
+    val essayEvaluating by viewModel.unebEssayEvaluating.collectAsState()
+
+    // Real-time Countdown timer task
+    LaunchedEffect(examActive) {
+        if (examActive) {
+            while (viewModel.unebExamTimeSeconds.value > 0 && viewModel.unebExamActive.value) {
+                delay(1000)
+                viewModel.unebExamTimeSeconds.value -= 1
+            }
+            if (viewModel.unebExamActive.value) {
+                viewModel.submitUNEBExam()
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (!examActive && !examSubmitted) {
+            // STEP 1: EXAM SCHEDULER & PAST PAPER SELECTOR CONFIGURATION CARD
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("uneb_config_card"),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Assignment, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Text("UNEB Trial Examination Center", fontSize = 14.sp, fontWeight = FontWeight.Black)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Mock CBT v4.2", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+
+                    // CLASS LEVEL CHIPS (S1 - S6)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("1. Academic Candidate Level", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            AcademicClassLevel.values().forEach { level ->
+                                val active = level == selectedClass
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            if (active) MaterialTheme.colorScheme.primary else Color(0xFFF1F5F9),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { viewModel.selectedExamClassLevel.value = level }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        level.label,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (active) Color.White else Color.DarkGray
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // SUBJECT CHIPS
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("2. Select Target Subject", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Biology", "Mathematics", "Economics", "General ICT").forEach { subj ->
+                                val active = subj == selectedSubject
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            if (active) MaterialTheme.colorScheme.primaryContainer else Color(0xFFF1F5F9),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .border(
+                                            BorderStroke(
+                                                1.dp,
+                                                if (active) MaterialTheme.colorScheme.primary else Color.Transparent
+                                            ),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { viewModel.selectedExamSubjectName.value = subj }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        subj,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (active) MaterialTheme.colorScheme.primary else Color.DarkGray
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // EXAM YEAR SELECTION
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("3. Choose Historical past Paper Year", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("2024", "2023", "2022", "2020").forEach { yr ->
+                                val active = yr == selectedYear
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            if (active) Color(0xFFE0F2FE) else Color(0xFFF1F5F9),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { viewModel.selectedExamYearString.value = yr }
+                                        .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "UNEB $yr",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (active) Color(0xFF0284C7) else Color.DarkGray
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // QUESTION RANDOMIZATION SWITCH
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                            .padding(10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Shuffle, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                            Column {
+                                Text("Question Randomization Mode", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("Shuffle test items to expand cognitive adaptability.", fontSize = 8.sp, color = Color.Gray)
+                            }
+                        }
+                        Switch(
+                            checked = randomized,
+                            onCheckedChange = { viewModel.unebQuestionsRandomized.value = it },
+                            modifier = Modifier.scale(0.8f).testTag("random_switch")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // START TIMED TRIAL BUTTON
+                    Button(
+                        onClick = { viewModel.startTimedUNEBExam() },
+                        modifier = Modifier.fillMaxWidth().height(44.dp).testTag("start_uneb_btn"),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("Launch Timed UNEB Trial Exam", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // STEP 2: RUNNING TIMED TRIAL TEST CONTAINER
+        if (examActive) {
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("uneb_running_card"),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF9F6)),
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // LIVE STATUS BAR (TIMIER HEADLINES)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFFEF2F2), RoundedCornerShape(12.dp))
+                            .border(BorderStroke(1.dp, Color(0xFFFEE2E2)), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.WatchLater, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                            Text(
+                                text = "UNEB MOCK RUNNING",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFFEF4444)
+                            )
+                        }
+
+                        // Formatted Timer Label
+                        val minutes = timeRemaining / 60
+                        val seconds = timeRemaining % 60
+                        val timerString = String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFEF4444), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = timerString,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Subject: Senior 4 National Mock — $selectedSubject (${selectedYear} Past Paper)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.DarkGray
+                    )
+
+                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.4f))
+
+                    // RENDER EACH QUESTION
+                    questions.forEachIndexed { idx, q ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White, RoundedCornerShape(14.dp))
+                                .border(BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f)), RoundedCornerShape(14.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("${idx + 1}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                }
+                                Text(
+                                    text = q.text,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+
+                            // Image-based Question Canvas representation!
+                            if (q.hasImage) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFFFFBEB), RoundedCornerShape(10.dp))
+                                        .border(BorderStroke(1.dp, Color(0xFFFDE68A)), RoundedCornerShape(10.dp))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "PLATE IX: Cell Organelle Specimen Labeled - Study the cristae structure",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFD97706)
+                                        )
+                                        CellMitochondrionCanvas()
+                                    }
+                                }
+                            }
+
+                            // CHOICE CONFIGURATION DEPENDING ON Q-TYPE
+                            when (q.qType) {
+                                "MCQ" -> {
+                                    q.options.forEachIndexed { optIdx, opt ->
+                                        val chosen = userAnswers[q.id] == optIdx.toString()
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(
+                                                    if (chosen) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                                    else Color.Transparent,
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(
+                                                    BorderStroke(
+                                                        1.dp,
+                                                        if (chosen) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.3f)
+                                                    ),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable { viewModel.updateUNEBUserMCQ(q.id, optIdx) }
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            RadioButton(
+                                                selected = chosen,
+                                                onClick = { viewModel.updateUNEBUserMCQ(q.id, optIdx) },
+                                                modifier = Modifier.scale(0.8f).testTag("q_${q.id}_opt_$optIdx")
+                                            )
+                                            Text(opt, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+                                }
+                                "STRUCTURED" -> {
+                                    val currentAns = userAnswers[q.id] ?: ""
+                                    OutlinedTextField(
+                                        value = currentAns,
+                                        onValueChange = { viewModel.updateUNEBUserStructured(q.id, it) },
+                                        placeholder = { Text("Type accurate scientific term (e.g. Transpiration)", fontSize = 9.sp) },
+                                        modifier = Modifier.fillMaxWidth().height(42.dp).testTag("q_${q.id}_field"),
+                                        textStyle = TextStyle(fontSize = 10.sp),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                }
+                                "ESSAY" -> {
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            "Section C Long Essay: Outline key bullet details below",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Gray
+                                        )
+                                        OutlinedTextField(
+                                            value = essayText,
+                                            onValueChange = { viewModel.unebEssayText.value = it },
+                                            placeholder = { Text("Write physiological adaptations of a mammalian heart...", fontSize = 9.sp) },
+                                            modifier = Modifier.fillMaxWidth().height(90.dp).testTag("essay_draft_field"),
+                                            textStyle = TextStyle(fontSize = 10.sp),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // SUBMIT TRIGGER BUTTON
+                    Button(
+                        onClick = { viewModel.submitUNEBExam() },
+                        modifier = Modifier.fillMaxWidth().height(42.dp).testTag("submit_exam_click"),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Finish and Hand-In UNEB Past Paper", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // STEP 3: MOCK RESULTS & CORRECTIONS FEEDBACK
+        if (examSubmitted) {
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("uneb_results_container"),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // Header Status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF10B981))
+                            Text("Mock Paper Correction Suite", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                        }
+                        IconButton(
+                            onClick = { viewModel.unebExamSubmitted.value = false },
+                            modifier = Modifier.size(28.dp).testTag("close_results_btn")
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+
+                    // SCORECARD VIEW
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("$lastScore", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                Text("MARKS", fontSize = 6.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.8f))
+                            }
+                        }
+
+                        Column {
+                            Text(lastDivision, fontSize = 13.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                            Text("Official Grading Equivalent: Senior 4 UNEB Trial Standards", fontSize = 9.sp, color = Color.Gray)
+                        }
+                    }
+
+                    // AUDEN AI ESSAY CHIEF EXAMINER EVALUATION WRITER
+                    if (essayText.isNotBlank()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFFAF5FF), RoundedCornerShape(14.dp))
+                                .border(BorderStroke(1.dp, Color(0xFFE9D5FF)), RoundedCornerShape(14.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(14.dp))
+                                    Text("Auden AI UNEB Chief Examiner Evaluation", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF6B21A8))
+                                }
+                                
+                                if (!essayEvaluating && essayFeedback == null) {
+                                    Button(
+                                        onClick = { viewModel.submitUNEBEssayForAIEvaluation() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6)),
+                                        shape = RoundedCornerShape(6.dp),
+                                        modifier = Modifier.height(26.dp).testTag("evaluate_essay_btn"),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) {
+                                        Text("AI Grade Outlines", fontSize = 8.sp, color = Color.White)
+                                    }
+                                }
+                            }
+
+                            if (essayEvaluating) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
+                                    Text("Consulting national examiner marking schemes...", fontSize = 8.sp, color = Color.Gray)
+                                }
+                            }
+
+                            if (essayFeedback != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(Color(0xFF7C3AED), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("$essayAIScore / 10", fontSize = 8.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    }
+                                    Text("Evaluated Grade Score", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                }
+                                Text(
+                                    text = essayFeedback ?: "",
+                                    fontSize = 9.sp,
+                                    color = Color(0xFF4C1D95),
+                                    lineHeight = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // RECOMMENDATIONS WEAK TOPIC FLASH REVISION CARD
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(12.dp))
+                                Text("Auden Personalized Weak-Subject Adaptive Recommendation", fontSize = 8.sp, fontWeight = FontWeight.Black, color = Color(0xFF92400E))
+                            }
+                            Text(
+                                "Based on Mock trial checks, focus on leaf water transpiration cycles and mitochondrion ATP conversions. Click Revision tab for study sessions.",
+                                fontSize = 8.sp,
+                                color = Color(0xFF78350F),
+                                lineHeight = 11.sp
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+
+                    Text("Answer Explanations & Corrections", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                    // LIST OF QUESTIONS WRONG / ANSWERS
+                    questions.forEachIndexed { idx, q ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Question ${idx + 1}: ${q.text}", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            
+                            when (q.qType) {
+                                "MCQ" -> {
+                                    val userSelIdx = userAnswers[q.id]?.toIntOrNull() ?: -1
+                                    val isCorrect = userSelIdx == q.correctOptionIndex
+                                    val userTextAns = if (userSelIdx >= 0) q.options[userSelIdx] else "Unanswered"
+                                    val correctTextAns = q.options.getOrElse(q.correctOptionIndex) { "" }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(
+                                            imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                            contentDescription = null,
+                                            tint = if (isCorrect) Color(0xFF10B981) else Color(0xFFEF4444),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "Your Answer: $userTextAns",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isCorrect) Color(0xFF047857) else Color(0xFFB91C1C)
+                                        )
+                                    }
+                                    if (!isCorrect) {
+                                        Text("Correct Answer: $correctTextAns", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                                    }
+                                }
+                                "STRUCTURED" -> {
+                                    val typedAns = userAnswers[q.id] ?: ""
+                                    val isCorrect = typedAns.equals(q.correctTextAnswer, ignoreCase = true)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(
+                                            imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                            contentDescription = null,
+                                            tint = if (isCorrect) Color(0xFF10B981) else Color(0xFFEF4444),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "Your Answer: '$typedAns'",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isCorrect) Color(0xFF047857) else Color(0xFFB91C1C)
+                                        )
+                                    }
+                                    if (!isCorrect) {
+                                        Text("Acceptable Term Name: '${q.correctTextAnswer}'", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                                    }
+                                }
+                                "ESSAY" -> {
+                                    Text("Detailed Essay Outline Handed-In successfully.", fontSize = 9.sp, color = Color.Gray)
+                                }
+                            }
+
+                            // RATIONALE SUMMARY DESCRIPTION WRITER
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White, RoundedCornerShape(8.dp))
+                                    .padding(8.dp)
+                            ) {
+                                Text(
+                                    text = "Explanation & Rationale: " + q.rationaleSummary,
+                                    fontSize = 8.sp,
+                                    color = Color.DarkGray,
+                                    lineHeight = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // STEP 4: HISTORICAL PAST PAPERS LOG BOOK (TRACKING HISTORY!)
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("uneb_history_card"),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                    Text("Candidate Trial History Index", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                history.forEach { log ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(log.subName, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text("Class: ${log.classLevel} | Year: ${log.examYear} past paper", fontSize = 7.sp, color = Color.Gray)
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(log.score, fontSize = 9.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (log.divisionLabel.contains("1")) Color(0xFFD1FAE5) else Color(0xFFF1F5F9),
+                                        RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    log.divisionLabel,
+                                    fontSize = 6.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (log.divisionLabel.contains("1")) Color(0xFF047857) else Color.DarkGray
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// CANVAS CORE: DYNAMIC HIGH RESOLUTION CELL DRAWING
+// =========================================================================
+@Composable
+fun CellMitochondrionCanvas() {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(110.dp)
+            .padding(4.dp)
+            .testTag("mitochondrion_draw")
+    ) {
+        val outerRadiusX = size.width / 4.5f
+        val outerRadiusY = size.height / 2.3f
+        val centerPoint = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+
+        // Draw Outer capsule membrane
+        drawOval(
+            color = Color(0xFFE11D48),
+            topLeft = androidx.compose.ui.geometry.Offset(centerPoint.x - outerRadiusX, centerPoint.y - outerRadiusY),
+            size = androidx.compose.ui.geometry.Size(outerRadiusX * 2, outerRadiusY * 2),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f)
+        )
+
+        // Inner folded cristae wave mapping
+        val p = androidx.compose.ui.graphics.Path().apply {
+            moveTo(centerPoint.x - outerRadiusX + 15f, centerPoint.y)
+            quadraticTo(centerPoint.x - 50f, centerPoint.y - 30f, centerPoint.x - 30f, centerPoint.y)
+            quadraticTo(centerPoint.x - 10f, centerPoint.y + 30f, centerPoint.x + 10f, centerPoint.y)
+            quadraticTo(centerPoint.x + 30f, centerPoint.y - 30f, centerPoint.x + 50f, centerPoint.y)
+            quadraticTo(centerPoint.x + 80f, centerPoint.y + 30f, centerPoint.x + outerRadiusX - 15f, centerPoint.y)
+        }
+        drawPath(path = p, color = Color(0xFF3B82F6), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f))
+
+        // Label arrows details
+        drawCircle(color = Color(0xFFD97706), radius = 5f, center = androidx.compose.ui.geometry.Offset(centerPoint.x, centerPoint.y))
+        drawCircle(color = Color(0xFFD97706), radius = 5f, center = androidx.compose.ui.geometry.Offset(centerPoint.x - 60f, centerPoint.y - 12f))
+    }
+}
+
+// =========================================================================
+// SCHOLAR GAMIFICATION SUITE MODALITY
+// =========================================================================
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun UgandanScholarGamificationHub(viewModel: LibraryViewModel) {
+    val xpPoints by viewModel.currentXpPoints.collectAsState()
+    val levelRank by viewModel.currentLevelRank.collectAsState()
+    val streak by viewModel.revisionStreakCount.collectAsState()
+    val focusTimerActive by viewModel.focusTimerActive.collectAsState()
+    val focusTimeRemaining by viewModel.focusTimeRemainingSeconds.collectAsState()
+    val syncedCalendar by viewModel.calendarRemindersSynced.collectAsState()
+
+    // Focus session ticker LaunchedEffect
+    LaunchedEffect(focusTimerActive) {
+        if (focusTimerActive) {
+            while (viewModel.focusTimeRemainingSeconds.value > 0 && viewModel.focusTimerActive.value) {
+                delay(1000)
+                viewModel.focusTimeRemainingSeconds.value -= 1
+            }
+            if (viewModel.focusTimerActive.value) {
+                viewModel.completeFocusSession()
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // XP PROGRESS LEVEL METER CARD
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("gamified_status_card"),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = AcademicGoldLight)
+                        Text("Scholar XP Achievement Rank", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(12.dp))
+                            Text("$streak Day Streak", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color(0xFFEF4444))
+                        }
+                    }
+                }
+
+                // XP Display Info
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Column {
+                        Text(text = levelRank, fontSize = 15.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text(text = "XP Progress Indicator (Leveling system)", fontSize = 8.sp, color = Color.Gray)
+                    }
+                    Text(text = "$xpPoints / 3200 XP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // Custom dynamic linear progress tracker bar
+                val currentPct = (xpPoints.toFloat() / 3200f).coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .background(Color(0xFFE2E8F0), RoundedCornerShape(4.dp))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(currentPct)
+                            .height(8.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(MaterialTheme.colorScheme.primary, Color(0xFF3B82F6))
+                                ),
+                                RoundedCornerShape(4.dp)
+                            )
+                    )
+                }
+            }
+        }
+
+        // STUDY SLAYER POMODORO CONCENTRATION CLOCK
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("pomodoro_focus_card"),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Watch, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                        Text("Scholar Pomodoro Focus Timer", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("+150 XP Reward", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val focusMinutes = focusTimeRemaining / 60
+                    val focusSeconds = focusTimeRemaining % 60
+                    val timerLabelStr = String.format(java.util.Locale.US, "%02d:%02d", focusMinutes, focusSeconds)
+                    
+                    Text(
+                        text = timerLabelStr,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        modifier = Modifier.testTag("pomodoro_time_text")
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        IconButton(
+                            onClick = { viewModel.toggleFocusTimer() },
+                            modifier = Modifier
+                                .background(if (focusTimerActive) Color(0xFFEF4444) else Color(0xFF38BDF8), RoundedCornerShape(8.dp))
+                                .size(34.dp).testTag("pomodoro_toggle_btn")
+                        ) {
+                            Icon(
+                                imageVector = if (focusTimerActive) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Toggle Timer",
+                                tint = Color.Black,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { viewModel.resetFocusTimer() },
+                            modifier = Modifier
+                                .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .size(34.dp).testTag("pomodoro_reset_btn")
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        // BUILT-IN CALENDAR SYNCHRONIST (WORKMANAGER + GOOGLE CALENDAR)
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("sync_reminders_card"),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color.Gray)
+                    Column {
+                        Text("Google Calendar Study Schedules", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (syncedCalendar) "Countdowns logged inside Android Calendar system!" else "Queue triggers with local WorkManager reminders",
+                            fontSize = 8.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = { viewModel.syncGoogleCalendarWorkManager() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (syncedCalendar) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(30.dp).testTag("calendar_sync_trigger_btn"),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(if (syncedCalendar) "Synced" else "Sync", fontSize = 9.sp, color = Color.White)
+                }
+            }
+        }
+
+        // TROPHIES & BADGES EXCELLENCE GALORE (BADGES WALL)
+        Text("Candidate Badges & Medals", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BadgeItemWidget("streak_fame_badge", "Streak Master", "12 DAYS", Color(0xFFFEF2F2), Color(0xFFEF4444), Icons.Default.LocalFireDepartment)
+            BadgeItemWidget("reader_fame_badge", "Top Reader", "S4 READS", Color(0xFFECFDF5), Color(0xFF10B981), Icons.Default.MenuBook)
+            BadgeItemWidget("score_fame_badge", "Quiz Master", "DISTINCT", Color(0xFFFFFBEB), Color(0xFFD97706), Icons.Default.EmojiEvents)
+            BadgeItemWidget("excellence_fame_badge", "Excellence Unit", "MEDALIST", Color(0xFFEFF6FF), Color(0xFF3B82F6), Icons.Default.WorkspacePremium)
+        }
+    }
+}
+
+// =========================================================================
+// WIDGET DESIGN: BADGES WRITER IN COMRADESHIP LAYOUTS
+// =========================================================================
+@Composable
+fun BadgeItemWidget(tag: String, title: String, scoreLabel: String, bg: Color, fg: Color, iconVector: ImageVector) {
+    Card(
+        modifier = Modifier
+            .width(160.dp)
+            .testTag(tag),
+        colors = CardDefaults.cardColors(containerColor = bg),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, fg.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(iconVector, contentDescription = null, tint = fg, modifier = Modifier.size(16.dp))
+            }
+            Text(title, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            Box(
+                modifier = Modifier
+                    .background(fg, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(scoreLabel, fontSize = 7.sp, fontWeight = FontWeight.Black, color = Color.White)
             }
         }
     }
