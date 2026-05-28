@@ -6,10 +6,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.LibraryDashboard
 import com.example.ui.LibraryViewModel
+import com.example.ui.auth.AuthEntryScreen
+import com.example.ui.auth.AuthState
+import com.example.ui.auth.AuthViewModel
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -24,8 +29,21 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    val viewModel: LibraryViewModel = viewModel()
-                    LibraryDashboard(viewModel = viewModel)
+                    val authViewModel: AuthViewModel = viewModel()
+                    val authState by authViewModel.authState.collectAsState()
+
+                    when (val state = authState) {
+                        is AuthState.Authenticated -> {
+                            val viewModel: LibraryViewModel = viewModel()
+                            LibraryDashboard(
+                                viewModel = viewModel,
+                                onLogout = { authViewModel.logout() }
+                            )
+                        }
+                        else -> {
+                            AuthEntryScreen(viewModel = authViewModel)
+                        }
+                    }
                 }
             }
         }

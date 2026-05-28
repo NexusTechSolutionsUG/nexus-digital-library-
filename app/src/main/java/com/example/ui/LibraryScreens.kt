@@ -51,7 +51,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun LibraryDashboard(viewModel: LibraryViewModel) {
+fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
     var selectedTab by remember { mutableStateOf(0) }
     val studentName by viewModel.studentName.collectAsState()
     val readingStreak by viewModel.readingStreak.collectAsState()
@@ -138,7 +138,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel) {
                         1 -> MyBooksTab(viewModel)
                         2 -> AILibrarianTab(viewModel)
                         3 -> CampusNewsTab(viewModel)
-                        4 -> StudentCardTab(viewModel)
+                        4 -> StudentCardTab(viewModel, onLogout)
                     }
                 }
             }
@@ -1629,7 +1629,7 @@ fun AnnouncementItem(announcement: Announcement) {
 // ==========================================
 
 @Composable
-fun StudentCardTab(viewModel: LibraryViewModel) {
+fun StudentCardTab(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
     val studentName by viewModel.studentName.collectAsState()
     val studentId by viewModel.studentId.collectAsState()
     val streak by viewModel.readingStreak.collectAsState()
@@ -1702,6 +1702,24 @@ fun StudentCardTab(viewModel: LibraryViewModel) {
 
             // High-fidelity Enterprise Sync, Conflict Resolution, Security, SQL Backup options
             EnterpriseSyncConsole(viewModel)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onLogout,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("supabase_signout_button"),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+            ) {
+                Icon(Icons.Default.ExitToApp, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Sign Out from Supabase", fontWeight = FontWeight.Bold)
+            }
         } else {
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("edit_student_form"),
