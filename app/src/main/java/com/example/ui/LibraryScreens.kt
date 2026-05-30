@@ -47,6 +47,9 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.SubcomposeAsyncImage
 import com.example.data.*
 import com.example.ui.theme.*
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -56,6 +59,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
     val studentName by viewModel.studentName.collectAsState()
     val readingStreak by viewModel.readingStreak.collectAsState()
     val activeViewerBookId by viewModel.activeViewerBookId.collectAsState()
+    val currentRole by viewModel.currentRole.collectAsState()
 
     if (activeViewerBookId != null) {
         UniversalFileViewerScreen(
@@ -63,82 +67,237 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
             onClose = { viewModel.closeBookViewer() }
         )
     } else {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            bottomBar = {
-                NavigationBar(
+        if (currentRole == UserRole.STUDENT) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                bottomBar = {
+                    NavigationBar(
+                        modifier = Modifier
+                            .shadow(8.dp)
+                            .testTag("bottom_nav_bar"),
+                        containerColor = MaterialTheme.colorScheme.background,
+                        tonalElevation = 8.dp
+                    ) {
+                        NavigationBarItem(
+                            icon = { Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Catalog") },
+                            label = { Text("Catalog", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            modifier = Modifier.testTag("tab_catalog")
+                        )
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.AutoStories, contentDescription = "My Books") },
+                            label = { Text("My Books", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            modifier = Modifier.testTag("tab_my_books")
+                        )
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "AI Support") },
+                            label = { Text("AI Ask", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
+                            modifier = Modifier.testTag("tab_ai_librarian")
+                        )
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.Campaign, contentDescription = "News") },
+                            label = { Text("News", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
+                            selected = selectedTab == 3,
+                            onClick = { selectedTab = 3 },
+                            modifier = Modifier.testTag("tab_news")
+                        )
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.ContactMail, contentDescription = "Profile") },
+                            label = { Text("ID Card", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
+                            selected = selectedTab == 4,
+                            onClick = { selectedTab = 4 },
+                            modifier = Modifier.testTag("tab_profile")
+                        )
+                    }
+                }
+            ) { innerPadding ->
+                Column(
                     modifier = Modifier
-                        .shadow(8.dp)
-                        .testTag("bottom_nav_bar"),
-                    containerColor = MaterialTheme.colorScheme.background,
-                    tonalElevation = 8.dp
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = if (isSystemInDarkTheme()) {
+                                    listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF020617))
+                                } else {
+                                    listOf(Color(0xFFFAF9F6), Color(0xFFEEF2F6), Color(0xFFE2E8F0))
+                                }
+                            )
+                        )
                 ) {
-                    NavigationBarItem(
-                        icon = { Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Catalog") },
-                        label = { Text("Catalog", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        modifier = Modifier.testTag("tab_catalog")
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.AutoStories, contentDescription = "My Books") },
-                        label = { Text("My Books", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        modifier = Modifier.testTag("tab_my_books")
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "AI Support") },
-                        label = { Text("AI Ask", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        modifier = Modifier.testTag("tab_ai_librarian")
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.Campaign, contentDescription = "News") },
-                        label = { Text("News", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 },
-                        modifier = Modifier.testTag("tab_news")
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.ContactMail, contentDescription = "Profile") },
-                        label = { Text("ID Card", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
-                        selected = selectedTab == 4,
-                        onClick = { selectedTab = 4 },
-                        modifier = Modifier.testTag("tab_profile")
-                    )
+                    // High School Header Row
+                    SchoolHeaderPanel(studentName, readingStreak)
+
+                    // High-fidelity active role changer controls
+                    RoleSelectorRow(viewModel)
+
+                    // Dynamic view based on tab index
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        when (selectedTab) {
+                            0 -> CatalogTab(viewModel)
+                            1 -> MyBooksTab(viewModel)
+                            2 -> AILibrarianTab(viewModel)
+                            3 -> CampusNewsTab(viewModel)
+                            4 -> StudentCardTab(viewModel, onLogout)
+                        }
+                    }
                 }
             }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = if (isSystemInDarkTheme()) {
-                                listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF020617))
-                            } else {
-                                listOf(Color(0xFFFAF9F6), Color(0xFFEEF2F6), Color(0xFFE2E8F0))
+        } else {
+            // Navigation drawer for staff roles
+            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+            val scope = rememberCoroutineScope()
+            // Keep tabs cleanly in memory for each staff context
+            var staffSelectedTab by remember { mutableStateOf(0) }
+
+            // Dynamic items mapping
+            val drawerItems = when (currentRole) {
+                UserRole.TEACHER -> listOf(
+                    "Dashboard" to Icons.Default.Dashboard,
+                    "Classes" to Icons.Default.People,
+                    "Assignments" to Icons.Default.Assignment,
+                    "Resources" to Icons.Default.Folder,
+                    "Quizzes" to Icons.Default.FactCheck,
+                    "Students" to Icons.Default.School,
+                    "Discussions" to Icons.Default.Forum
+                )
+                UserRole.LIBRARIAN -> listOf(
+                    "Dashboard" to Icons.Default.Dashboard,
+                    "Books" to Icons.Default.Book,
+                    "Subjects" to Icons.Default.LibraryBooks,
+                    "Uploads" to Icons.Default.Upload,
+                    "Reports" to Icons.Default.Assessment
+                )
+                else -> listOf( // ADMIN / SUPER_ADMIN
+                    "Dashboard" to Icons.Default.Dashboard,
+                    "Users" to Icons.Default.People,
+                    "Library Resource" to Icons.Default.Category,
+                    "Analytics" to Icons.Default.TrendingUp,
+                    "Settings" to Icons.Default.Settings
+                )
+            }
+
+            // Adjust selected index out-of-bounds safety on role-swapping demos
+            if (staffSelectedTab >= drawerItems.size) {
+                staffSelectedTab = 0
+            }
+
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                drawerContent = {
+                    ModalDrawerSheet {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(280.dp)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "NEXUS INTERACTIVE",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Workspace: ${currentRole.name}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                drawerItems.forEachIndexed { index, item ->
+                                    val isSelected = staffSelectedTab == index
+                                    NavigationDrawerItem(
+                                        icon = { Icon(item.second, contentDescription = item.first) },
+                                        label = { Text(item.first, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                                        selected = isSelected,
+                                        onClick = {
+                                            scope.launch { drawerState.close() }
+                                            staffSelectedTab = index
+                                        },
+                                        modifier = Modifier
+                                            .padding(vertical = 2.dp)
+                                            .testTag("drawer_item_${item.first.lowercase().replace(" ", "_")}")
+                                    )
+                                }
+                            }
+                            
+                            // Bottom developer selector and logout trigger
+                            Column {
+                                Button(
+                                    onClick = onLogout,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("drawer_logout_btn"),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(Icons.Default.Logout, contentDescription = "Logout")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Log out and Exit")
+                                }
+                                
+                                Divider(modifier = Modifier.padding(vertical = 12.dp))
+                                RoleSelectorRow(viewModel)
+                            }
+                        }
+                    }
+                }
+            ) {
+                Scaffold(
+                    topBar = {
+                        @OptIn(ExperimentalMaterial3Api::class)
+                        TopAppBar(
+                            title = { 
+                                Column {
+                                    Text(
+                                        text = drawerItems.getOrNull(staffSelectedTab)?.first ?: "Oakridge Hub",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp
+                                    )
+                                    Text(
+                                        text = "Portal: ${currentRole.name}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            navigationIcon = {
+                                IconButton(
+                                    onClick = { scope.launch { drawerState.open() } },
+                                    modifier = Modifier.testTag("drawer_hamburger")
+                                ) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = onLogout, modifier = Modifier.testTag("staff_logout_top")) {
+                                    Icon(Icons.Default.Logout, contentDescription = "Logout")
+                                }
                             }
                         )
-                    )
-            ) {
-                // High School Header Row
-                SchoolHeaderPanel(studentName, readingStreak)
-
-                // High-fidelity active role changer controls
-                RoleSelectorRow(viewModel)
-
-                // Dynamic view based on tab index
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    when (selectedTab) {
-                        0 -> CatalogTab(viewModel)
-                        1 -> MyBooksTab(viewModel)
-                        2 -> AILibrarianTab(viewModel)
-                        3 -> CampusNewsTab(viewModel)
-                        4 -> StudentCardTab(viewModel, onLogout)
+                    }
+                ) { innerPadding ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
+                        StaffWorkspaceView(
+                            role = currentRole,
+                            selectedTab = staffSelectedTab,
+                            viewModel = viewModel,
+                            onLogout = onLogout
+                        )
                     }
                 }
             }
@@ -6101,5 +6260,1500 @@ fun BadgeItemWidget(tag: String, title: String, scoreLabel: String, bg: Color, f
         }
     }
 }
+
+// =====================================================================
+// SKELETON STAFF WORKSPACE SCREEN DEPLOYMENTS
+// =====================================================================
+
+@Composable
+fun StaffWorkspaceView(
+    role: UserRole,
+    selectedTab: Int,
+    viewModel: LibraryViewModel,
+    onLogout: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        when (role) {
+            UserRole.TEACHER -> {
+                when (selectedTab) {
+                    0 -> TeacherDashboardTab(viewModel)
+                    1 -> TeacherClassesTab(viewModel)
+                    2 -> TeacherAssignmentsTab(viewModel)
+                    3 -> TeacherResourcesTab(viewModel)
+                    4 -> TeacherQuizTab(viewModel)
+                    5 -> TeacherStudentsTab(viewModel)
+                    6 -> TeacherDiscussionsTab(viewModel)
+                    else -> TeacherDashboardTab(viewModel)
+                }
+            }
+            UserRole.LIBRARIAN -> {
+                when (selectedTab) {
+                    0 -> LibrarianDashboardTab(viewModel)
+                    1 -> LibrarianBooksTab(viewModel)
+                    2 -> LibrarianSubjectsTab(viewModel)
+                    3 -> LibrarianUploadsTab(viewModel)
+                    4 -> LibrarianReportsTab(viewModel)
+                    else -> LibrarianDashboardTab(viewModel)
+                }
+            }
+            UserRole.ADMIN, UserRole.SUPER_ADMIN -> {
+                when (selectedTab) {
+                    0 -> AdminDashboardTab(viewModel)
+                    1 -> AdminUsersTab(viewModel)
+                    2 -> AdminResourceStatsTab(viewModel)
+                    3 -> AdminActivityLogsTab(viewModel)
+                    4 -> AdminSystemConfigTab(viewModel)
+                    else -> AdminDashboardTab(viewModel)
+                }
+            }
+            else -> {
+                Text(
+                    text = "Unsupported Desk Scope",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+}
+
+// ======================== TEACHER WORKSPACE ========================
+
+@Composable
+fun TeacherDashboardTab(viewModel: LibraryViewModel) {
+    val assignments by viewModel.teacherAssignments.collectAsState()
+    val materials by viewModel.cmsMaterials.collectAsState()
+    val studentsCount = 84
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text(
+                text = "Welcome to Faculty Desk",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Oakridge Integrated Learning Environment (OILE)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        item {
+            // Stats Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    modifier = Modifier.weight(1.5f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Active Classroom Registry", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text("$studentsCount Students", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text("Across 3 grade bands", fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Syllabus Tasks", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("${assignments.size} Active", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("Due within 14 days", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("CMS Modules", fontSize = 11.sp, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                        Text("${materials.size} Files", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                        Text("Offline synced", fontSize = 10.sp, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.weight(1.2f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Discussion Status", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Healthy", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("0 spam logs registered", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Automated Quick Operations", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Rapid Notifications Broadcast",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Broadcast alert to all student profiles instantly.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.addNotification("System wide Alert", "Teacher broadcasted a mandatory assignment update.", "assignment")
+                                Toast.makeText(context, "Syllabus alert dispatched to all students!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("teacher_broadcast_1"),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Dispatch Assignment Alert")
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.addNotification("Library Announcement", "Teacher requested students to verify reading logs.", "announcement")
+                                Toast.makeText(context, "Reading log reminder dispatched!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("teacher_broadcast_2"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text("Send Reading Log Reminder")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TeacherClassesTab(viewModel: LibraryViewModel) {
+    val context = LocalContext.current
+    val classesList = remember {
+        listOf(
+            Triple("Grade 12 Advanced Biology", "AP level", "28 Students"),
+            Triple("Grade 11 Inorganic Chemistry", "A-Level", "32 Students"),
+            Triple("Grade 10 General Physics", "O-Level Studio", "24 Students")
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Registered Classrooms", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Select a grade band to review, broadcast, or moderate progress", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(classesList) { currentClass ->
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.People, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column {
+                                Text(currentClass.first, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(currentClass.second, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = currentClass.third,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
+                    Divider()
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                Toast.makeText(context, "Attendance alert broadcasted for ${currentClass.first}!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Attendance Alert")
+                        }
+
+                        Button(
+                            onClick = {
+                                Toast.makeText(context, "Syllabus homework link dispatched to ${currentClass.first}!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Deploy Homework Link")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TeacherAssignmentsTab(viewModel: LibraryViewModel) {
+    val assignments by viewModel.teacherAssignments.collectAsState()
+    val booksList by viewModel.books.collectAsState(initial = emptyList())
+    val context = LocalContext.current
+    var showDialog by remember { mutableStateOf(false) }
+
+    // Dialog state variables
+    var titleInput by remember { mutableStateOf("") }
+    var instructionsInput by remember { mutableStateOf("") }
+    var selectedBookIndex by remember { mutableStateOf(0) }
+    var dateInput by remember { mutableStateOf("June 5th, 2026") }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showDialog = true },
+                modifier = Modifier.testTag("create_assignment_fab")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "AddAssignment")
+            }
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text("Assignment Manager", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Assign specific library textbooks or novels with custom reading deadlines to class feeds.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (assignments.isEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "No syllabus assignments deployed yet. Press the + FAB to assign.",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(24.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                items(assignments) { item ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(item.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Due ${item.dueDate}",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                            Text("Material Resource: ${item.bookTitle} (${item.author})", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Instructions: ${item.instructions}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                            val ratio = if (item.totalCount > 0) item.completedCount.toFloat() / item.totalCount.toFloat() else 0f
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                LinearProgressIndicator(
+                                    progress = ratio,
+                                    modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp))
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("${item.completedCount}/${item.totalCount} Done", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showDialog) {
+            val bookToAssign = booksList.getOrNull(selectedBookIndex)
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Deploy Novel Assignment") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = titleInput,
+                            onValueChange = { titleInput = it },
+                            label = { Text("Assignment Subject Title") },
+                            modifier = Modifier.fillMaxWidth().testTag("assign_title_input")
+                        )
+
+                        Text("Select Resource Book", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            booksList.take(4).forEachIndexed { idx, book ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(
+                                            1.dp,
+                                            if (selectedBookIndex == idx) MaterialTheme.colorScheme.primary
+                                            else Color.Transparent,
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .clickable { selectedBookIndex = idx }
+                                        .padding(4.dp)
+                                ) {
+                                    Text(book.title.take(12) + "...", fontSize = 9.sp, textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = instructionsInput,
+                            onValueChange = { instructionsInput = it },
+                            label = { Text("Dynamic Guidelines Instructions") },
+                            modifier = Modifier.fillMaxWidth().testTag("assign_instruction_input")
+                        )
+
+                        OutlinedTextField(
+                            value = dateInput,
+                            onValueChange = { dateInput = it },
+                            label = { Text("Completion Due Date") },
+                            modifier = Modifier.fillMaxWidth().testTag("assign_date_input")
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (titleInput.isNotBlank()) {
+                                viewModel.createAssignment(
+                                    title = titleInput,
+                                    bookId = bookToAssign?.id ?: "b1",
+                                    bookTitle = bookToAssign?.title ?: "The Great Gatsby",
+                                    author = bookToAssign?.author ?: "F. Scott Fitzgerald",
+                                    dueDate = dateInput,
+                                    instructions = instructionsInput
+                                )
+                                Toast.makeText(context, "Assignment deployed successfully!", Toast.LENGTH_SHORT).show()
+                                showDialog = false
+                                titleInput = ""
+                                instructionsInput = ""
+                            }
+                        },
+                        modifier = Modifier.testTag("confirm_create_assignment")
+                    ) {
+                        Text("Publish to Feed")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun TeacherResourcesTab(viewModel: LibraryViewModel) {
+    val materials by viewModel.cmsMaterials.collectAsState()
+    val context = LocalContext.current
+    var title by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("S4 Biology") }
+    var materialType by remember { mutableStateOf(MaterialType.PDF) }
+    var showUploadDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showUploadDialog = true },
+                modifier = Modifier.testTag("upload_material_fab")
+            ) {
+                Icon(Icons.Default.CloudUpload, contentDescription = "UploadMaterial")
+            }
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text("Course Resources Folder", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Manage reference material (syllabus briefs, PDFs, video walkthrough channels) mapped to classes.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            items(materials) { mat ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(
+                                imageVector = when (mat.type) {
+                                    MaterialType.PDF -> Icons.Default.Description
+                                    MaterialType.VIDEO -> Icons.Default.OndemandVideo
+                                    MaterialType.NOTES -> Icons.Default.Edit
+                                    else -> Icons.Default.School
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column {
+                                Text(mat.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Category: ${mat.category}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("• ${mat.fileSize}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                viewModel.deleteMaterial(mat.id)
+                                Toast.makeText(context, "${mat.title} removed from cloud folder!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.testTag("delete_material_${mat.id}")
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showUploadDialog) {
+            AlertDialog(
+                onDismissRequest = { showUploadDialog = false },
+                title = { Text("Publish Class Resource") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = { title = it },
+                            label = { Text("Resource Item Title") },
+                            modifier = Modifier.fillMaxWidth().testTag("upload_title_input")
+                        )
+
+                        OutlinedTextField(
+                            value = selectedCategory,
+                            onValueChange = { selectedCategory = it },
+                            label = { Text("Target Class Category") },
+                            modifier = Modifier.fillMaxWidth().testTag("upload_category_input")
+                        )
+
+                        Text("Select Resource Type", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            MaterialType.values().forEach { type ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (materialType == type) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .clickable { materialType = type }
+                                        .padding(8.dp)
+                                ) {
+                                    Text(type.name, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (title.isNotBlank()) {
+                                viewModel.uploadMaterial(
+                                    title = title,
+                                    type = materialType,
+                                    category = selectedCategory,
+                                    isPinned = false
+                                )
+                                Toast.makeText(context, "Material linked in cloud drive!", Toast.LENGTH_SHORT).show()
+                                showUploadDialog = false
+                                title = ""
+                            }
+                        },
+                        modifier = Modifier.testTag("confirm_upload_resource")
+                    ) {
+                        Text("Deploy Resource")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUploadDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun TeacherQuizTab(viewModel: LibraryViewModel) {
+    val context = LocalContext.current
+    var topic by remember { mutableStateOf("Plant Adaptations") }
+    val quizBuilderLogs = remember {
+        listOf(
+            "June 1st" to "S4 Biology - MCQ Worksheet Generated (10 Qs)",
+            "May 28th" to "Grade 10 English Literature Prose Quiz (15 Qs)",
+            "May 22nd" to "S3 Physics - Dynamic Kinetic Energy Deck (8 Qs)"
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Automated Interactive Quiz Builder", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Assemble mock prep cards or full length interactive MCQ sheets mapped dynamically.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Instant Form Question Generator", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    OutlinedTextField(
+                        value = topic,
+                        onValueChange = { topic = it },
+                        label = { Text("Specify Assessment Syllabus Topic") },
+                        modifier = Modifier.fillMaxWidth().testTag("quiz_topic_input")
+                    )
+
+                    Button(
+                        onClick = {
+                            viewModel.addNotification("Quiz Alert", "Interactive quiz created for syllabus topic: $topic!", "goal")
+                            Toast.makeText(context, "$topic MCQ Practice Deck generated successfully!", Toast.LENGTH_LONG).show()
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("build_quiz_btn"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Generate Practice Worksheet")
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Past Assessment Builder History", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+        }
+
+        items(quizBuilderLogs) { log ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(log.second, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Built on ${log.first}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.CheckCircle, contentDescription = "Active", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TeacherStudentsTab(viewModel: LibraryViewModel) {
+    val studentsList = remember {
+        listOf(
+            Triple("Aaron Wancha", "S4 Eagle Rank", "8 Books Read / Grade: 94%"),
+            Triple("Alex Rivera", "S4 Candidate", "5 Books Read / Grade: 88%"),
+            Triple("Emily Rivera", "S3 High Flyer", "7 Books Read / Grade: 92%"),
+            Triple("Marcus Chen", "S4 Candidate", "4 Books Read / Grade: 79%")
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Student Profile Progress Sheets", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Monitor checkouts, average AI practice quiz performances, and syllabus targets.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(studentsList) { student ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(student.first, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Band: ${student.second}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(student.third, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                            .padding(10.dp)
+                    ) {
+                        Icon(Icons.Default.School, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TeacherDiscussionsTab(viewModel: LibraryViewModel) {
+    val forumPosts by viewModel.subjectDiscussionForum.collectAsState()
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Subject Boards Moderation Console", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Review community posts and flag spam content instantly to keep standard academic boards clean.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(forumPosts) { post ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(post.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("${post.minutesAgo} min ago", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(post.messageText, fontSize = 12.sp)
+
+                    Divider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                viewModel.reportForumSpam(post.id)
+                                Toast.makeText(context, "Syllabus message has been flagged for check!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.testTag("flag_spam_${post.id}")
+                        ) {
+                            Text("Flag/Isolate spam", color = MaterialTheme.colorScheme.error)
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.verifyForumPost(post.id)
+                                Toast.makeText(context, "Syllabus message verified!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.testTag("verify_post_${post.id}"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Mark Verified")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ======================== LIBRARIAN WORKSPACE ========================
+
+@Composable
+fun LibrarianDashboardTab(viewModel: LibraryViewModel) {
+    val overdues by viewModel.overdueItems.collectAsState()
+    val booksList by viewModel.books.collectAsState(initial = emptyList())
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text("Welcome to Library Registrar Desk", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+            Text("Manage textbook catalog indexing, stocks, returns, and storage metrics", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        item {
+            // Metrics grid row
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Active Stocks", fontSize = 11.sp)
+                        Text("${booksList.size} Titles", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("Syllabus copies mapped", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Slices Overdue", fontSize = 11.sp)
+                        Text("${overdues.size} Accounts", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("Fines actively accrue", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Physical Stock Damage Check", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Text("Trigger catalog alerts for damaged textbook tracking and quick replenishment cycles.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                viewModel.addNotification("Restock Request", "Librarian flags general request for AP Chemistry textbooks.", "goal")
+                                Toast.makeText(context, "Restock replenishment order spawned!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("lib_restock_btn"),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Replenish Order")
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.runStorageCleanup()
+                                Toast.makeText(context, "Internal logs index parsed & updated!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("lib_cleanup_btn"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text("Parse Log Indexes")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LibrarianBooksTab(viewModel: LibraryViewModel) {
+    val booksList by viewModel.books.collectAsState(initial = emptyList())
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("General Stock Indexing", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Refine individual textbook registries or report damage events.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(booksList) { book ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(book.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Author: ${book.author} | ${book.category}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "Copies: ${book.availableCopies}/${book.totalCopies}",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.flagBookDamage(book.id)
+                                Toast.makeText(context, "Damage flagged! Notification issued to maintenance team.", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("flag_damage_${book.id}"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Flag Damaged Case")
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.addNewBookCopy(book.id)
+                                Toast.makeText(context, "Added direct physical copy for ${book.title}!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("add_copy_${book.id}"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Add Copy Stock")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LibrarianSubjectsTab(viewModel: LibraryViewModel) {
+    val subjects by viewModel.allAcademicSubjects.collectAsState()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Subject Category Matrix", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Syllabus directories containing indexed learning assets.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(subjects) { subj ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(subj.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Category: ${subj.id.uppercase()}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    Icon(Icons.Default.LibraryBooks, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LibrarianUploadsTab(viewModel: LibraryViewModel) {
+    val context = LocalContext.current
+    var title by remember { mutableStateOf("") }
+    var author by remember { mutableStateOf("") }
+    var year by remember { mutableStateOf("2026") }
+    var copies by remember { mutableStateOf("10") }
+    var category by remember { mutableStateOf("Biology") }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text("Syllabus Textbook Provision Setup", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Provision new reference publications and curriculum volumes instantly into catalog queues.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("General Textbook Upload", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Book Publication Title") },
+                        modifier = Modifier.fillMaxWidth().testTag("add_book_title"),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = author,
+                        onValueChange = { author = it },
+                        label = { Text("Lead Author") },
+                        modifier = Modifier.fillMaxWidth().testTag("add_book_author"),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = { category = it },
+                        label = { Text("Academic Category Subject") },
+                        modifier = Modifier.fillMaxWidth().testTag("add_book_category"),
+                        singleLine = true
+                    )
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = year,
+                            onValueChange = { year = it },
+                            label = { Text("Publication Year") },
+                            modifier = Modifier.weight(1f).testTag("add_book_year"),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = copies,
+                            onValueChange = { copies = it },
+                            label = { Text("Physical Copies count") },
+                            modifier = Modifier.weight(1f).testTag("add_book_copies"),
+                            singleLine = true
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            if (title.isNotBlank() && author.isNotBlank()) {
+                                viewModel.postNewAnnouncement(
+                                    "[Catalog Added] " + title,
+                                    "Ready to circulate: " + author + "'s new title under " + category + ".",
+                                    false
+                                )
+                                Toast.makeText(context, "Textbook database queued successfully!", Toast.LENGTH_LONG).show()
+                                title = ""
+                                author = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("publish_book_btn"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Queue Textbook into Catalog")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LibrarianReportsTab(viewModel: LibraryViewModel) {
+    val overdues by viewModel.overdueItems.collectAsState()
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Overdue & Late Return Logs", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Issue fine warnings to student emails experiencing borrow overruns.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(overdues) { over ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(over.studentName, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("Direct Contact: ${over.contactEmail}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "Fine: UX \$${over.fineAccrued}",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+
+                    Divider()
+
+                    Text("Asset overdue: ${over.bookTitle} (${over.daysOverdue} Days overdue)", fontSize = 12.sp)
+
+                    Button(
+                        onClick = {
+                            viewModel.triggerOverdueWarning(over.id)
+                            Toast.makeText(context, "Dispatched fine notice to student: ${over.contactEmail}!", Toast.LENGTH_LONG).show()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("trigger_warning_${over.id}"),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Issue Outstanding Fine warning")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ======================== ADMINISTRATOR WORKSPACE ========================
+
+@Composable
+fun AdminDashboardTab(viewModel: LibraryViewModel) {
+    val users by viewModel.userModerationProfiles.collectAsState()
+    val cleanColor = MaterialTheme.colorScheme.primary
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text("School Analytics Dashboard", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+            Text("Real-time monitoring of campus literacy indices and active directory stats", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        item {
+            // Analytical Canvas Line Chart
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Active Reading Engagement Index (Weekly)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Text("Plots percentage of checking-out directory users week-over-week.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .padding(top = 8.dp)
+                    ) {
+                        val canvasWidth = size.width
+                        val canvasHeight = size.height
+                        
+                        // Draw background boundary rules
+                        drawLine(Color.Gray.copy(alpha = 0.2f), Offset(0f, 0f), Offset(canvasWidth, 0f), strokeWidth = 1f)
+                        drawLine(Color.Gray.copy(alpha = 0.2f), Offset(0f, canvasHeight * 0.5f), Offset(canvasWidth, canvasHeight * 0.5f), strokeWidth = 1f)
+                        drawLine(Color.Gray.copy(alpha = 0.2f), Offset(0f, canvasHeight), Offset(canvasWidth, canvasHeight), strokeWidth = 1f)
+
+                        // Data plots: (W1: 40%, W2: 65%, W3: 50%, W4: 85%, W5: 92%)
+                        val points = listOf(
+                            Offset(canvasWidth * 0.05f, canvasHeight * (1f - 0.40f)),
+                            Offset(canvasWidth * 0.25f, canvasHeight * (1f - 0.65f)),
+                            Offset(canvasWidth * 0.50f, canvasHeight * (1f - 0.50f)),
+                            Offset(canvasWidth * 0.75f, canvasHeight * (1f - 0.85f)),
+                            Offset(canvasWidth * 0.95f, canvasHeight * (1f - 0.92f))
+                        )
+
+                        // Trace graph lines
+                        for (i in 0 until points.size - 1) {
+                            drawLine(
+                                color = cleanColor,
+                                start = points[i],
+                                end = points[i+1],
+                                strokeWidth = 4f
+                            )
+                        }
+
+                        // Plot focus dots
+                        points.forEach { pt ->
+                            drawCircle(color = cleanColor, radius = 5f, center = pt)
+                        }
+                    }
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Mon", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text("Tue", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text("Wed", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text("Thu", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text("Fri", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Monitored Profiles", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${users.size} Accounts", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Active Systems", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Online", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminUsersTab(viewModel: LibraryViewModel) {
+    val users by viewModel.userModerationProfiles.collectAsState()
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Directory Profile Management", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Toggle profile restrictions or verify identities.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(users) { usr ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(usr.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(usr.email, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Role Band: ${usr.grade}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            color = if (usr.status == "Active") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = usr.status,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (usr.status == "Active") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val targetStatus = if (usr.status == "Active") "Suspended" else "Active"
+                                viewModel.updateUserStatus(usr.id, targetStatus)
+                                Toast.makeText(context, "${usr.name}'s status changed to $targetStatus!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.testTag("toggle_user_${usr.id}"),
+                            shape = RoundedCornerShape(6.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (usr.status == "Active") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(
+                                text = if (usr.status == "Active") "Suspend Profile" else "Activate Profile",
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminResourceStatsTab(viewModel: LibraryViewModel) {
+    val storageMetrics by viewModel.systemStorageMetrics.collectAsState()
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text("System Storage & Resource Allocation", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Optimize data streams, compression logs, and clear cache indexes.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Automated Server Diagnostics", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                viewModel.compressMediaFiles()
+                                Toast.makeText(context, "Syllabus media compressed successfully!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("admin_compress_btn"),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Compress Media")
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.runStorageCleanup()
+                                Toast.makeText(context, "Server Diagnostics executed cleanly!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("admin_cleanup_btn"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text("Diagnostics Clean")
+                        }
+                    }
+                }
+            }
+        }
+
+        items(storageMetrics) { metric ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(metric.category, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Active Items: ${metric.itemCount}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Disk Usage: ${metric.sizeLabel}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Ratio: ${metric.compressionRatio}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminActivityLogsTab(viewModel: LibraryViewModel) {
+    val simulatedLogs = remember {
+        listOf(
+            "12:15 PM" to "Auth mapping compiled: User Aaron Wancha (STUDENT) logged in from local sandbox",
+            "11:58 AM" to "Syllabus Resource published: F. Scott Fitzgerald text added by Librarian",
+            "10:45 AM" to "Database backup: Daily offline-first backup process resolved successfully",
+            "09:12 AM" to "Model config: Gemini API checked utilizing standard dynamic key routes"
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Live Directory Security Logs", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Chronological capture of administrative operations and API requests.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(simulatedLogs) { log ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "SYSTEM INFO",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        Text(log.first, fontSize = 11.sp, color = Color.Gray)
+                    }
+                    Text(log.second, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminSystemConfigTab(viewModel: LibraryViewModel) {
+    val context = LocalContext.current
+    var modelToken by remember { mutableStateOf("gemini-1.5-pro-flash") }
+    var serverHost by remember { mutableStateOf("https://oakridge.edu/api/v1") }
+    var multiFactorAuth by remember { mutableStateOf(true) }
+    var storageCapLimit by remember { mutableStateOf("50 GB") }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text("Hardware & Software Settings Configuration", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Calibrate school infrastructure nodes, AI models, security thresholds, and network channels.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Global Variables setup", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+
+                    OutlinedTextField(
+                        value = modelToken,
+                        onValueChange = { modelToken = it },
+                        label = { Text("Active Gemini Brain model selection") },
+                        modifier = Modifier.fillMaxWidth().testTag("config_model_input")
+                    )
+
+                    OutlinedTextField(
+                        value = serverHost,
+                        onValueChange = { serverHost = it },
+                        label = { Text("External Directory Server Host Endpoint") },
+                        modifier = Modifier.fillMaxWidth().testTag("config_host_input")
+                    )
+
+                    OutlinedTextField(
+                        value = storageCapLimit,
+                        onValueChange = { storageCapLimit = it },
+                        label = { Text("Max allocated storage threshold (per profile)") },
+                        modifier = Modifier.fillMaxWidth().testTag("config_limit_input")
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Enable Multi-Factor Staff login security", fontSize = 13.sp)
+                        Switch(
+                            checked = multiFactorAuth,
+                            onCheckedChange = { multiFactorAuth = it },
+                            modifier = Modifier.testTag("config_mfa_switch")
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.addNotification("Config Alert", "Administrative settings successfully synchronized!", "goal")
+                            Toast.makeText(context, "System variables saved to local preferences!", Toast.LENGTH_LONG).show()
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("config_submit_btn"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Save Administrative Settings")
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 

@@ -234,7 +234,7 @@ fun AuthEntryScreen(
 }
 
 enum class LoginTab {
-    STUDENT, TEACHER, STAFF_ADMIN
+    STUDENT, TEACHER, LIBRARIAN, ADMINISTRATOR
 }
 
 @Composable
@@ -290,12 +290,14 @@ private fun LoginView(
                     val label = when (tab) {
                         LoginTab.STUDENT -> "Student"
                         LoginTab.TEACHER -> "Teacher"
-                        LoginTab.STAFF_ADMIN -> "Librarian"
+                        LoginTab.LIBRARIAN -> "Librarian"
+                        LoginTab.ADMINISTRATOR -> "Admin"
                     }
                     val icon = when (tab) {
                         LoginTab.STUDENT -> Icons.Default.School
                         LoginTab.TEACHER -> Icons.Default.SupervisorAccount
-                        LoginTab.STAFF_ADMIN -> Icons.Default.AdminPanelSettings
+                        LoginTab.LIBRARIAN -> Icons.Default.LocalLibrary
+                        LoginTab.ADMINISTRATOR -> Icons.Default.AdminPanelSettings
                     }
 
                     Box(
@@ -318,8 +320,12 @@ private fun LoginView(
                                         email = "teacher@oakridge.edu"
                                         password = "8585@@"
                                     }
-                                    LoginTab.STAFF_ADMIN -> {
+                                    LoginTab.LIBRARIAN -> {
                                         email = "librarian@oakridge.edu"
+                                        password = "8585@@"
+                                    }
+                                    LoginTab.ADMINISTRATOR -> {
+                                        email = "admin@oakridge.edu"
                                         password = "8585@@"
                                     }
                                 }
@@ -341,7 +347,7 @@ private fun LoginView(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = label,
-                                fontSize = 13.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
                             )
@@ -390,14 +396,20 @@ private fun LoginView(
                     onValueChange = { email = it },
                     label = { 
                         Text(
-                            if (activeTab == LoginTab.TEACHER) "Teacher Email Address" 
-                            else "Administrative Email"
+                            when (activeTab) {
+                                LoginTab.TEACHER -> "Teacher Email Address"
+                                LoginTab.LIBRARIAN -> "Librarian Email"
+                                else -> "Administrative Email ID"
+                            }
                         ) 
                     },
                     placeholder = { 
                         Text(
-                            if (activeTab == LoginTab.TEACHER) "e.g. teacher@oakridge.edu" 
-                            else "e.g. librarian@oakridge.edu"
+                            when (activeTab) {
+                                LoginTab.TEACHER -> "e.g. teacher@oakridge.edu"
+                                LoginTab.LIBRARIAN -> "e.g. librarian@oakridge.edu"
+                                else -> "e.g. admin@oakridge.edu"
+                            }
                         ) 
                     },
                     singleLine = true,
@@ -590,7 +602,7 @@ private fun SignUpView(
     var email by remember { mutableStateOf("teacher@oakridge.edu") }
     
     var password by remember { mutableStateOf("8585@@") }
-    var selectedRole by remember { mutableStateOf(UserRole.STUDENT) }
+    var selectedRole by remember { mutableStateOf(UserRole.TEACHER) }
     var passwordVisible by remember { mutableStateOf(false) }
 
     val isStudent = selectedRole == UserRole.STUDENT
@@ -711,8 +723,8 @@ private fun SignUpView(
                     .padding(bottom = 12.dp)
             ) {
                 UserRole.values().forEach { role ->
-                    // Exclude SUPER_ADMIN from standard signup
-                    if (role != UserRole.SUPER_ADMIN) {
+                    // Exclude SUPER_ADMIN and STUDENT from standard signup since students can't self-register
+                    if (role != UserRole.SUPER_ADMIN && role != UserRole.STUDENT) {
                         val isSelected = selectedRole == role
                         Row(
                             modifier = Modifier
