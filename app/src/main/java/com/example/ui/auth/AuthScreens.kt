@@ -230,8 +230,8 @@ private fun LoginView(
     onLogin: (String, String) -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("wanchaaaron@gmail.com") }
+    var password by remember { mutableStateOf("8585@@") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     Card(
@@ -326,9 +326,9 @@ private fun SignUpView(
     onSignUp: (String, String, String, UserRole) -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("Aaron Wancha") }
+    var email by remember { mutableStateOf("wanchaaaron@gmail.com") }
+    var password by remember { mutableStateOf("8585@@") }
     var selectedRole by remember { mutableStateOf(UserRole.STUDENT) }
     var passwordVisible by remember { mutableStateOf(false) }
 
