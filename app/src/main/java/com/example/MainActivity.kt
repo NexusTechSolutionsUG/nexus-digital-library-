@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.LibraryDashboard
@@ -37,12 +38,16 @@ class MainActivity : ComponentActivity() {
                             val viewModel: LibraryViewModel = viewModel()
                             val user = state.session.user
                             val metadata = user?.userMetadata
-                            viewModel.setSessionUser(
-                                firstName = metadata?.firstName,
-                                lastName = metadata?.lastName,
-                                email = user?.email,
-                                roleStr = metadata?.role
-                            )
+                            
+                            LaunchedEffect(user) {
+                                viewModel.setSessionUser(
+                                    firstName = metadata?.firstName,
+                                    lastName = metadata?.lastName,
+                                    email = user?.email,
+                                    roleStr = metadata?.role
+                                )
+                            }
+                            
                             LibraryDashboard(
                                 viewModel = viewModel,
                                 onLogout = { authViewModel.logout() }

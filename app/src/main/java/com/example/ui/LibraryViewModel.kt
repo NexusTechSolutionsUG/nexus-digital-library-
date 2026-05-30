@@ -1279,6 +1279,16 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (e: Exception) {
+            android.util.Log.e("LibraryViewModel", "TTS Shutdown Error", e)
+        }
+    }
 }
 
 data class UNEBQuestion(
