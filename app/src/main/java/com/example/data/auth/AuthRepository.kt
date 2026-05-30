@@ -20,4 +20,8 @@ interface AuthRepository {
     suspend fun logout()
 
     fun loadSavedSession(): AuthResponse?
+
+    fun lookupEmailForStudentId(studentId: String): String?
+    fun lookupStudentIdForEmail(email: String): String?
+    fun registerStudentIdMapping(studentId: String, email: String)
 }

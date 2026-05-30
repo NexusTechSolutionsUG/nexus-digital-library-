@@ -29,7 +29,6 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         val fullName = listOfNotNull(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
             .ifBlank { email?.substringBefore("@") } ?: "School User"
         studentName.value = fullName
-        studentId.value = email ?: "StudentID-2026-HSL"
         
         val mappedRole = when (roleStr?.uppercase()) {
             "STUDENT" -> UserRole.STUDENT
@@ -40,6 +39,14 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             else -> UserRole.STUDENT
         }
         currentRole.value = mappedRole
+
+        if (mappedRole == UserRole.STUDENT && email != null) {
+            val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
+            val lookedUpId = prefs.getString("email_to_id_$email", null) ?: email.substringBefore("@").uppercase()
+            studentId.value = lookedUpId
+        } else {
+            studentId.value = email ?: "StudentID-2026-HSL"
+        }
     }
 
     // Optional Cloud Sync state (WorkManager queues, conflicts, offline indicators)

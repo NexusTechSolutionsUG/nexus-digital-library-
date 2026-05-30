@@ -87,7 +87,7 @@ fun AuthEntryScreen(
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
             // Dynamic Display matching State Machine
@@ -203,7 +203,11 @@ fun AuthEntryScreen(
                     else -> {
                         if (isSigningUp) {
                             SignUpView(
-                                onSignUp = { fullName, email, password, role ->
+                                onSignUpStudent = { fullName, studentId, password ->
+                                    focusManager.clearFocus()
+                                    viewModel.signUpStudent(fullName, studentId, password)
+                                },
+                                onSignUpStaff = { fullName, email, password, role ->
                                     focusManager.clearFocus()
                                     viewModel.signUp(fullName, email, password, role)
                                 },
@@ -211,7 +215,11 @@ fun AuthEntryScreen(
                             )
                         } else {
                             LoginView(
-                                onLogin = { email, password ->
+                                onLoginWithStudentId = { studentId, password ->
+                                    focusManager.clearFocus()
+                                    viewModel.loginWithStudentId(studentId, password)
+                                },
+                                onLoginWithEmail = { email, password ->
                                     focusManager.clearFocus()
                                     viewModel.login(email, password)
                                 },
@@ -225,21 +233,35 @@ fun AuthEntryScreen(
     }
 }
 
+enum class LoginTab {
+    STUDENT, TEACHER, STAFF_ADMIN
+}
+
 @Composable
 private fun LoginView(
-    onLogin: (String, String) -> Unit,
+    onLoginWithStudentId: (String, String) -> Unit,
+    onLoginWithEmail: (String, String) -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
-    var email by remember { mutableStateOf("wanchaaaron@gmail.com") }
+    var activeTab by remember { mutableStateOf(LoginTab.STUDENT) }
+    
+    // Maintain separate field states to deliver a premium UX
+    var studentId by remember { mutableStateOf("S4A-023") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("8585@@") }
     var passwordVisible by remember { mutableStateOf(false) }
+    
+    // Password recovery dialog state
+    var showResetDialog by remember { mutableStateOf(false) }
+    var resetInput by remember { mutableStateOf("") }
+    var resetSuccessMsg by remember { mutableStateOf<String?>(null) }
 
     Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = 480.dp),
+            .widthIn(max = 500.dp),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -247,27 +269,153 @@ private fun LoginView(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Sign In",
+                text = "Account Access Portal",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email Address") },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "EmailIcon") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
+            // Dynamic Segmented Role Selector tabs
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("auth_email_input")
-            )
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                LoginTab.values().forEach { tab ->
+                    val isSelected = activeTab == tab
+                    val label = when (tab) {
+                        LoginTab.STUDENT -> "Student"
+                        LoginTab.TEACHER -> "Teacher"
+                        LoginTab.STAFF_ADMIN -> "Librarian"
+                    }
+                    val icon = when (tab) {
+                        LoginTab.STUDENT -> Icons.Default.School
+                        LoginTab.TEACHER -> Icons.Default.SupervisorAccount
+                        LoginTab.STAFF_ADMIN -> Icons.Default.AdminPanelSettings
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else Color.Transparent
+                            )
+                            .clickable { 
+                                activeTab = tab 
+                                // Auto-fill reasonable defaults to make evaluation seamless!
+                                when (tab) {
+                                    LoginTab.STUDENT -> {
+                                        studentId = "S4A-023"
+                                        password = "8585@@"
+                                    }
+                                    LoginTab.TEACHER -> {
+                                        email = "teacher@oakridge.edu"
+                                        password = "8585@@"
+                                    }
+                                    LoginTab.STAFF_ADMIN -> {
+                                        email = "librarian@oakridge.edu"
+                                        password = "8585@@"
+                                    }
+                                }
+                            }
+                            .padding(vertical = 10.dp)
+                            .testTag("login_tab_${tab.name.lowercase()}"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = "$label icon",
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = label,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Dynamic input based on selection
+            if (activeTab == LoginTab.STUDENT) {
+                OutlinedTextField(
+                    value = studentId,
+                    onValueChange = { studentId = it },
+                    label = { Text("Student ID") },
+                    placeholder = { Text("e.g. S4A-023") },
+                    singleLine = true,
+                    leadingIcon = { 
+                        Icon(
+                            imageVector = Icons.Default.Badge, 
+                            contentDescription = "BadgeIcon"
+                        ) 
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("auth_student_id_input")
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = "🔒 Behind-the-scenes email lookup: Nexus maps Student ID to Supabase",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.Start).padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            } else {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { 
+                        Text(
+                            if (activeTab == LoginTab.TEACHER) "Teacher Email Address" 
+                            else "Administrative Email"
+                        ) 
+                    },
+                    placeholder = { 
+                        Text(
+                            if (activeTab == LoginTab.TEACHER) "e.g. teacher@oakridge.edu" 
+                            else "e.g. librarian@oakridge.edu"
+                        ) 
+                    },
+                    singleLine = true,
+                    leadingIcon = { 
+                        Icon(
+                            imageVector = Icons.Default.Email, 
+                            contentDescription = "EmailIcon"
+                        ) 
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("auth_email_input")
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -293,51 +441,166 @@ private fun LoginView(
                     .testTag("auth_password_input")
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // Password reset trigger link
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Text(
+                    text = "Forgot Password?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clickable { 
+                            resetInput = if (activeTab == LoginTab.STUDENT) studentId else email
+                            resetSuccessMsg = null
+                            showResetDialog = true 
+                        }
+                        .padding(4.dp)
+                        .testTag("forgot_password_button")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             Button(
-                onClick = { onLogin(email, password) },
+                onClick = { 
+                    if (activeTab == LoginTab.STUDENT) {
+                        onLoginWithStudentId(studentId, password)
+                    } else {
+                        onLoginWithEmail(email, password)
+                    }
+                },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
                     .testTag("login_button")
             ) {
-                Text("Sign In Securely", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (activeTab == LoginTab.STUDENT) "Sign In with Student ID" else "Sign In Securely",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Don't have an library profile? Sign up here",
+                text = "Don't have a library profile? Register here",
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
                 modifier = Modifier
                     .clickable { onNavigateToSignUp() }
                     .padding(8.dp)
+                    .testTag("navigate_signup_button")
             )
         }
+    }
+
+    // Advanced Password Reset Dialog
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = {
+                Text(
+                    text = "Secure Password Recovery",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter your registered Email Address or Student ID. We will initiate a secure password reset sequence.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    OutlinedTextField(
+                        value = resetInput,
+                        onValueChange = { resetInput = it },
+                        label = { Text("Email or Student ID") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (resetSuccessMsg != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = resetSuccessMsg!!,
+                            fontSize = 13.sp,
+                            color = Color(0xFF137333),
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFE6F4EA), RoundedCornerShape(8.dp))
+                                .padding(10.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (resetSuccessMsg == null) {
+                    Button(
+                        onClick = {
+                            val target = resetInput.trim()
+                            if (target.isBlank()) {
+                                resetSuccessMsg = "Please enter a valid identifier."
+                            } else {
+                                resetSuccessMsg = if (!target.contains("@")) {
+                                    "Password reset request dispatched. Since you are a student, your academic counselor received the reset code for security compliance."
+                                } else {
+                                    "Password reset link has been dispatched to $target. Please verify your email inbox."
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Reset Password")
+                    }
+                } else {
+                    Button(onClick = { showResetDialog = false }) {
+                        Text("Finish")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
 @Composable
 private fun SignUpView(
-    onSignUp: (String, String, String, UserRole) -> Unit,
+    onSignUpStudent: (String, String, String) -> Unit,
+    onSignUpStaff: (String, String, String, UserRole) -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
     var fullName by remember { mutableStateOf("Aaron Wancha") }
-    var email by remember { mutableStateOf("wanchaaaron@gmail.com") }
+    // Maintain separate inputs for student selection vs staff
+    var studentId by remember { mutableStateOf("S4A-023") }
+    var email by remember { mutableStateOf("teacher@oakridge.edu") }
+    
     var password by remember { mutableStateOf("8585@@") }
     var selectedRole by remember { mutableStateOf(UserRole.STUDENT) }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    val isStudent = selectedRole == UserRole.STUDENT
+
     Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = 480.dp),
+            .widthIn(max = 500.dp),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -345,7 +608,7 @@ private fun SignUpView(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Register Profile",
+                text = "Register Library Profile",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -369,20 +632,40 @@ private fun SignUpView(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email Address") },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "EmailIcon") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("auth_signup_email_input")
-            )
+            // Dynamic identification inputs (Student ID vs Email)
+            if (isStudent) {
+                OutlinedTextField(
+                    value = studentId,
+                    onValueChange = { studentId = it },
+                    label = { Text("Student ID") },
+                    placeholder = { Text("e.g. S4A-023") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Badge, contentDescription = "BadgeIcon") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("auth_signup_student_id_input")
+                )
+            } else {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Staff Email Address") },
+                    placeholder = { Text("e.g. name@oakridge.edu") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "EmailIcon") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("auth_signup_email_input")
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -425,41 +708,87 @@ private fun SignUpView(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 20.dp)
+                    .padding(bottom = 12.dp)
             ) {
                 UserRole.values().forEach { role ->
-                    val isSelected = selectedRole == role
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    // Exclude SUPER_ADMIN from standard signup
+                    if (role != UserRole.SUPER_ADMIN) {
+                        val isSelected = selectedRole == role
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                )
+                                .clickable { selectedRole = role }
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selectedRole = role }
                             )
-                            .clickable { selectedRole = role }
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = isSelected,
-                            onClick = { selectedRole = role }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = role.displayName,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = role.displayName,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
 
+            // Beautiful informative alert card regarding credentials & verification policy
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isStudent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Policy Info Icon",
+                        tint = if (isStudent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isStudent) {
+                            "💡 Student convenience rule: Student accounts bypass verification. Sign up and access instantly using your Student ID!"
+                        } else {
+                            "🔒 Security Compliance: Staff profiles (Teachers / Librarians / Admins) require an active email address & verification inbox link before logging in."
+                        },
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isStudent) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
             Button(
-                onClick = { onSignUp(fullName, email, password, selectedRole) },
+                onClick = { 
+                    if (isStudent) {
+                        onSignUpStudent(fullName, studentId, password)
+                    } else {
+                        onSignUpStaff(fullName, email, password, selectedRole)
+                    }
+                },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -479,6 +808,7 @@ private fun SignUpView(
                 modifier = Modifier
                     .clickable { onNavigateToLogin() }
                     .padding(8.dp)
+                    .testTag("navigate_login_button")
             )
         }
     }

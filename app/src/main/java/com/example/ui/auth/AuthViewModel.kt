@@ -56,6 +56,55 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loginWithStudentId(studentId: String, password: String) {
+        val cleanId = studentId.trim()
+        if (cleanId.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Student ID and password cannot be empty.")
+            return
+        }
+        val email = authRepository.lookupEmailForStudentId(cleanId) ?: "${cleanId.lowercase()}@student.nexus.edu"
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.login(email, password)
+                .onSuccess { session ->
+                    _authState.value = AuthState.Authenticated(session)
+                }
+                .onFailure { exception ->
+                    _authState.value = AuthState.Error(exception.message ?: "Invalid Student ID or password.")
+                }
+        }
+    }
+
+    fun signUpStudent(fullName: String, studentId: String, password: String) {
+        val cleanId = studentId.trim()
+        if (fullName.isBlank()) {
+            _authState.value = AuthState.Error("Full Name cannot be empty.")
+            return
+        }
+        if (cleanId.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Student ID and password cannot be empty.")
+            return
+        }
+        if (password.length < 6) {
+            _authState.value = AuthState.Error("Password must be at least 6 characters.")
+            return
+        }
+        val email = "${cleanId.lowercase()}@student.nexus.edu"
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.signUp(fullName, email, password, UserRole.STUDENT)
+                .onSuccess { session ->
+                    authRepository.registerStudentIdMapping(cleanId, email)
+                    _authState.value = AuthState.SuccessMessage(
+                        "Student profile registered successfully! Students bypass email verification. You can sign in immediately using your Student ID: $cleanId."
+                    )
+                }
+                .onFailure { exception ->
+                    _authState.value = AuthState.Error(exception.message ?: "Authentication failed.")
+                }
+        }
+    }
+
     fun signUp(fullName: String, email: String, password: String, role: UserRole) {
         if (fullName.isBlank()) {
             _authState.value = AuthState.Error("Full Name cannot be empty.")

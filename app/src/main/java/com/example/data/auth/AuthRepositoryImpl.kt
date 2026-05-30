@@ -62,6 +62,7 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
     }
 
     init {
+        prepopulateDefaultMappings()
         loadSavedSession()
     }
 
@@ -188,5 +189,55 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
         } catch (e: Exception) {
             // Save gracefully fallback
         }
+    }
+
+    private fun prepopulateDefaultMappings() {
+        val editor = sharedPreferences.edit()
+        val defaultMappings = mapOf(
+            "S4A-023" to "wanchaaaron@gmail.com",
+            "S4B-101" to "alex.rivera@oakridge.edu",
+            "S4B-102" to "marcus.chen@oakridge.edu",
+            "S3A-015" to "sarah.j@oakridge.edu",
+            "S4B-104" to "taylor.vance@oakridge.edu",
+            "S4B-105" to "emily.r@oakridge.edu"
+        )
+        defaultMappings.forEach { (studentId, email) ->
+            val idKeyForEmail = "email_to_id_$email"
+            val emailKeyForId = "id_to_email_${studentId.uppercase().trim()}"
+            if (!sharedPreferences.contains(idKeyForEmail)) {
+                editor.putString(idKeyForEmail, studentId)
+            }
+            if (!sharedPreferences.contains(emailKeyForId)) {
+                editor.putString(emailKeyForId, email)
+            }
+        }
+        editor.apply()
+    }
+
+    override fun lookupEmailForStudentId(studentId: String): String? {
+        val cleanId = studentId.uppercase().trim()
+        val storedEmail = sharedPreferences.getString("id_to_email_$cleanId", null)
+        if (storedEmail != null) return storedEmail
+        return "${cleanId.lowercase()}@student.nexus.edu"
+    }
+
+    override fun lookupStudentIdForEmail(email: String): String? {
+        val storedId = sharedPreferences.getString("email_to_id_$email", null)
+        if (storedId != null) return storedId
+        if (email.contains("@")) {
+            val prefix = email.substringBefore("@")
+            if (prefix.matches(Regex("^[a-zA-Z0-9\\-]+$"))) {
+                return prefix.uppercase()
+            }
+        }
+        return null
+    }
+
+    override fun registerStudentIdMapping(studentId: String, email: String) {
+        val cleanId = studentId.uppercase().trim()
+        sharedPreferences.edit()
+            .putString("id_to_email_$cleanId", email)
+            .putString("email_to_id_$email", studentId)
+            .apply()
     }
 }
