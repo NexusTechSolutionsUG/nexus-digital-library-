@@ -22,8 +22,29 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Setup edge-to-edge drawing
-        enableEdgeToEdge()
+        // Setup highly robust uncaught exception handler to prevent and clear corrupt login/state crash loops
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            android.util.Log.e("MainActivity", "Uncaught runtime crash on thread: ${thread.name}", throwable)
+            try {
+                // Clear active session to break out of any potential cached auth or database crash loops
+                getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
+                    .edit()
+                    .remove("saved_session")
+                    .apply()
+            } catch (ex: Exception) {
+                // Ignore silently in crash path
+            }
+            // Let the system handle the crash clean exit
+            android.os.Process.killProcess(android.os.Process.myPid())
+            java.lang.System.exit(10)
+        }
+
+        try {
+            // Setup edge-to-edge drawing with safety fallback
+            enableEdgeToEdge()
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "enableEdgeToEdge initialization error", e)
+        }
         
         setContent {
             MyApplicationTheme {
@@ -38,7 +59,7 @@ class MainActivity : ComponentActivity() {
                             val viewModel: LibraryViewModel = viewModel()
                             val user = state.session.user
                             val metadata = user?.userMetadata
-                            
+
                             LaunchedEffect(user) {
                                 viewModel.setSessionUser(
                                     firstName = metadata?.firstName,
@@ -47,7 +68,7 @@ class MainActivity : ComponentActivity() {
                                     roleStr = metadata?.role
                                 )
                             }
-                            
+
                             LibraryDashboard(
                                 viewModel = viewModel,
                                 onLogout = { authViewModel.logout() }

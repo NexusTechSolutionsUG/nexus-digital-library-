@@ -155,6 +155,10 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
             // Keep tabs cleanly in memory for each staff context
             var staffSelectedTab by remember { mutableStateOf(0) }
 
+            LaunchedEffect(currentRole) {
+                staffSelectedTab = 0
+            }
+
             // Dynamic items mapping
             val drawerItems = when (currentRole) {
                 UserRole.TEACHER -> listOf(
@@ -182,10 +186,8 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                 )
             }
 
-            // Adjust selected index out-of-bounds safety on role-swapping demos
-            if (staffSelectedTab >= drawerItems.size) {
-                staffSelectedTab = 0
-            }
+            // Adjust selected index out-of-bounds safety on role-swapping demos on read-time
+            val staffSelectedTabSafe = if (staffSelectedTab >= drawerItems.size) 0 else staffSelectedTab
 
             ModalNavigationDrawer(
                 drawerState = drawerState,
@@ -214,7 +216,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 drawerItems.forEachIndexed { index, item ->
-                                    val isSelected = staffSelectedTab == index
+                                    val isSelected = staffSelectedTabSafe == index
                                     NavigationDrawerItem(
                                         icon = { Icon(item.second, contentDescription = item.first) },
                                         label = { Text(item.first, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
@@ -259,7 +261,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                             title = { 
                                 Column {
                                     Text(
-                                        text = drawerItems.getOrNull(staffSelectedTab)?.first ?: "Oakridge Hub",
+                                        text = drawerItems.getOrNull(staffSelectedTabSafe)?.first ?: "Oakridge Hub",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 18.sp
                                     )
@@ -294,7 +296,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                     ) {
                         StaffWorkspaceView(
                             role = currentRole,
-                            selectedTab = staffSelectedTab,
+                            selectedTab = staffSelectedTabSafe,
                             viewModel = viewModel,
                             onLogout = onLogout
                         )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +36,7 @@ fun AuthEntryScreen(
     modifier: Modifier = Modifier
 ) {
     var isSigningUp by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf<LoginTab?>(null) }
     val authState by viewModel.authState.collectAsState()
     val focusManager = LocalFocusManager.current
 
@@ -201,30 +203,41 @@ fun AuthEntryScreen(
                         }
                     }
                     else -> {
-                        if (isSigningUp) {
-                            SignUpView(
-                                onSignUpStudent = { fullName, studentId, password ->
-                                    focusManager.clearFocus()
-                                    viewModel.signUpStudent(fullName, studentId, password)
-                                },
-                                onSignUpStaff = { fullName, email, password, role ->
-                                    focusManager.clearFocus()
-                                    viewModel.signUp(fullName, email, password, role)
-                                },
-                                onNavigateToLogin = { isSigningUp = false }
+                        val currentCategory = selectedCategory
+                        if (currentCategory == null) {
+                            CategorySelectionScreen(
+                                onCategorySelected = { selectedCategory = it }
                             )
                         } else {
-                            LoginView(
-                                onLoginWithStudentId = { studentId, password ->
-                                    focusManager.clearFocus()
-                                    viewModel.loginWithStudentId(studentId, password)
-                                },
-                                onLoginWithEmail = { email, password ->
-                                    focusManager.clearFocus()
-                                    viewModel.login(email, password)
-                                },
-                                onNavigateToSignUp = { isSigningUp = true }
-                            )
+                            if (isSigningUp) {
+                                SignUpView(
+                                    initialCategory = currentCategory,
+                                    onSignUpStudent = { fullName, studentId, password ->
+                                        focusManager.clearFocus()
+                                        viewModel.signUpStudent(fullName, studentId, password)
+                                    },
+                                    onSignUpStaff = { fullName, email, password, role ->
+                                        focusManager.clearFocus()
+                                        viewModel.signUp(fullName, email, password, role)
+                                    },
+                                    onNavigateToLogin = { isSigningUp = false },
+                                    onBackToCategories = { selectedCategory = null }
+                                )
+                            } else {
+                                LoginView(
+                                    initialTab = currentCategory,
+                                    onLoginWithStudentId = { studentId, password ->
+                                        focusManager.clearFocus()
+                                        viewModel.loginWithStudentId(studentId, password)
+                                    },
+                                    onLoginWithEmail = { email, password ->
+                                        focusManager.clearFocus()
+                                        viewModel.login(email, password)
+                                    },
+                                    onNavigateToSignUp = { isSigningUp = true },
+                                    onBackToCategories = { selectedCategory = null }
+                                )
+                            }
                         }
                     }
                 }
@@ -239,11 +252,13 @@ enum class LoginTab {
 
 @Composable
 private fun LoginView(
+    initialTab: LoginTab,
     onLoginWithStudentId: (String, String) -> Unit,
     onLoginWithEmail: (String, String) -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onNavigateToSignUp: () -> Unit,
+    onBackToCategories: () -> Unit
 ) {
-    var activeTab by remember { mutableStateOf(LoginTab.STUDENT) }
+    var activeTab by remember(initialTab) { mutableStateOf(initialTab) }
     
     // Maintain separate field states to deliver a premium UX
     var studentId by remember { mutableStateOf("S4A-023") }
@@ -268,13 +283,31 @@ private fun LoginView(
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Account Access Portal",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackToCategories,
+                    modifier = Modifier.testTag("login_back_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back to Categories",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Account Access Portal",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             // Dynamic Segmented Role Selector tabs
             Row(
@@ -592,17 +625,27 @@ private fun LoginView(
 
 @Composable
 private fun SignUpView(
+    initialCategory: LoginTab,
     onSignUpStudent: (String, String, String) -> Unit,
     onSignUpStaff: (String, String, String, UserRole) -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onBackToCategories: () -> Unit
 ) {
+    val initialRole = remember(initialCategory) {
+        when (initialCategory) {
+            LoginTab.TEACHER -> UserRole.TEACHER
+            LoginTab.LIBRARIAN -> UserRole.LIBRARIAN
+            LoginTab.ADMINISTRATOR -> UserRole.ADMIN
+            else -> UserRole.TEACHER
+        }
+    }
     var fullName by remember { mutableStateOf("Aaron Wancha") }
     // Maintain separate inputs for student selection vs staff
     var studentId by remember { mutableStateOf("S4A-023") }
     var email by remember { mutableStateOf("teacher@oakridge.edu") }
     
     var password by remember { mutableStateOf("8585@@") }
-    var selectedRole by remember { mutableStateOf(UserRole.TEACHER) }
+    var selectedRole by remember(initialRole) { mutableStateOf(initialRole) }
     var passwordVisible by remember { mutableStateOf(false) }
 
     val isStudent = selectedRole == UserRole.STUDENT
@@ -619,13 +662,31 @@ private fun SignUpView(
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Register Library Profile",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackToCategories,
+                    modifier = Modifier.testTag("signup_back_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back to Categories",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Register Library Profile",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             OutlinedTextField(
                 value = fullName,
@@ -825,3 +886,145 @@ private fun SignUpView(
         }
     }
 }
+
+@Composable
+fun CategorySelectionScreen(
+    onCategorySelected: (LoginTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = modifier
+            .fillMaxWidth()
+            .widthIn(max = 500.dp),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Select Portal Category",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            Text(
+                text = "Choose your workspace department to log in or register",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+            
+            val categories = listOf(
+                CategoryItem(
+                    tab = LoginTab.STUDENT,
+                    title = "Student Portal",
+                    subtitle = "Borrow textbooks, review reading progress, and take AI-generated quizzes.",
+                    icon = Icons.Default.School,
+                    color = Color(0xFF3B82F6) // Bright blue
+                ),
+                CategoryItem(
+                    tab = LoginTab.TEACHER,
+                    title = "Teacher Desk",
+                    subtitle = "Analyze student activity, curate custom bookshelves, and assign material.",
+                    icon = Icons.Default.SupervisorAccount,
+                    color = Color(0xFF10B981) // Emerald green
+                ),
+                CategoryItem(
+                    tab = LoginTab.LIBRARIAN,
+                    title = "Librarian Terminal",
+                    subtitle = "Supervise copy physical status, monitor borrowings, and push global alerts.",
+                    icon = Icons.Default.LocalLibrary,
+                    color = Color(0xFFF59E0B) // Amber orange
+                ),
+                CategoryItem(
+                    tab = LoginTab.ADMINISTRATOR,
+                    title = "Admin Center",
+                    subtitle = "Manage secure database connections, review activity logs, and system metrics.",
+                    icon = Icons.Default.AdminPanelSettings,
+                    color = Color(0xFFEF4444) // Scarlet red
+                )
+            )
+            
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                categories.forEach { item ->
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onCategorySelected(item.tab) }
+                            .testTag("category_select_${item.tab.name.lowercase()}")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(item.color.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.title,
+                                    tint = item.color,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.title,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = item.subtitle,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "Navigate to Login",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class CategoryItem(
+    val tab: LoginTab,
+    val title: String,
+    val subtitle: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val color: Color
+)
