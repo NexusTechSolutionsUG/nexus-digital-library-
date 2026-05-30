@@ -108,7 +108,9 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
 
             if (response.isSuccessful && response.body() != null) {
                 val authResponse = response.body()!!
-                saveSession(authResponse)
+                if (!authResponse.accessToken.isNullOrEmpty()) {
+                    saveSession(authResponse)
+                }
                 Result.success(authResponse)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "Signup failed"

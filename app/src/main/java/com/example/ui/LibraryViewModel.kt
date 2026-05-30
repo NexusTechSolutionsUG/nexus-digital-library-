@@ -25,6 +25,23 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     // Multi-role State
     val currentRole = MutableStateFlow(UserRole.STUDENT)
 
+    fun setSessionUser(firstName: String?, lastName: String?, email: String?, roleStr: String?) {
+        val fullName = listOfNotNull(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
+            .ifBlank { email?.substringBefore("@") } ?: "School User"
+        studentName.value = fullName
+        studentId.value = email ?: "StudentID-2026-HSL"
+        
+        val mappedRole = when (roleStr?.uppercase()) {
+            "STUDENT" -> UserRole.STUDENT
+            "LIBRARIAN" -> UserRole.LIBRARIAN
+            "TEACHER" -> UserRole.TEACHER
+            "ADMIN" -> UserRole.ADMIN
+            "SUPER_ADMIN" -> UserRole.SUPER_ADMIN
+            else -> UserRole.STUDENT
+        }
+        currentRole.value = mappedRole
+    }
+
     // Optional Cloud Sync state (WorkManager queues, conflicts, offline indicators)
     val cloudSyncEnabled = MutableStateFlow(false)
     val syncStatus = MutableStateFlow(SyncStatus.IDLE)

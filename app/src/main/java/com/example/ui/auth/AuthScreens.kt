@@ -152,6 +152,54 @@ fun AuthEntryScreen(
                             }
                         }
                     }
+                    is AuthState.SuccessMessage -> {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFE6F4EA)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 500.dp)
+                                .padding(vertical = 12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Success",
+                                        tint = Color(0xFF137333),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Registration Successful",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF137333),
+                                        fontSize = 16.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = state.message,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF137333)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { 
+                                        isSigningUp = false
+                                        viewModel.clearError()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF137333)
+                                    ),
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text("Proceed to Sign In", color = Color.White)
+                                }
+                            }
+                        }
+                    }
                     else -> {
                         if (isSigningUp) {
                             SignUpView(

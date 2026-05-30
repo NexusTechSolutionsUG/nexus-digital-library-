@@ -4,11 +4,11 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 enum class UserRole {
-    SCHOOL,
     STUDENT,
-    TEACHER,
     LIBRARIAN,
-    ADMIN;
+    TEACHER,
+    ADMIN,
+    SUPER_ADMIN;
 
     val displayName: String
         get() = name.lowercase().replaceFirstChar { it.uppercase() }
@@ -23,17 +23,17 @@ data class UserMetadata(
 
 @JsonClass(generateAdapter = true)
 data class UserDto(
-    val id: String,
-    val email: String?,
-    @Json(name = "user_metadata") val userMetadata: UserMetadata?
+    val id: String? = null,
+    val email: String? = null,
+    @Json(name = "user_metadata") val userMetadata: UserMetadata? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class AuthResponse(
-    @Json(name = "access_token") val accessToken: String,
-    @Json(name = "token_type") val tokenType: String,
-    @Json(name = "expires_in") val expiresIn: Long,
-    val user: UserDto
+    @Json(name = "access_token") val accessToken: String? = null,
+    @Json(name = "token_type") val tokenType: String? = null,
+    @Json(name = "expires_in") val expiresIn: Long? = null,
+    val user: UserDto? = null
 )
 
 @JsonClass(generateAdapter = true)

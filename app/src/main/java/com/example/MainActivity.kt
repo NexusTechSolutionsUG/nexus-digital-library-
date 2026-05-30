@@ -35,6 +35,14 @@ class MainActivity : ComponentActivity() {
                     when (val state = authState) {
                         is AuthState.Authenticated -> {
                             val viewModel: LibraryViewModel = viewModel()
+                            val user = state.session.user
+                            val metadata = user?.userMetadata
+                            viewModel.setSessionUser(
+                                firstName = metadata?.firstName,
+                                lastName = metadata?.lastName,
+                                email = user?.email,
+                                roleStr = metadata?.role
+                            )
                             LibraryDashboard(
                                 viewModel = viewModel,
                                 onLogout = { authViewModel.logout() }

@@ -17,6 +17,7 @@ sealed interface AuthState {
     object Loading : AuthState
     data class Authenticated(val session: AuthResponse) : AuthState
     data class Error(val message: String) : AuthState
+    data class SuccessMessage(val message: String) : AuthState
 }
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
@@ -72,7 +73,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _authState.value = AuthState.Loading
             authRepository.signUp(fullName, email, password, role)
                 .onSuccess { session ->
-                    _authState.value = AuthState.Authenticated(session)
+                    if (session.accessToken.isNullOrEmpty()) {
+                        _authState.value = AuthState.SuccessMessage(
+                            "Profile Registered Successfully! Please check your email inbox to confirm your account before logging in."
+                        )
+                    } else {
+                        _authState.value = AuthState.Authenticated(session)
+                    }
                 }
                 .onFailure { exception ->
                     _authState.value = AuthState.Error(exception.message ?: "Authentication failed.")
@@ -81,7 +88,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearError() {
-        if (_authState.value is AuthState.Error) {
+        if (_authState.value is AuthState.Error || _authState.value is AuthState.SuccessMessage) {
             _authState.value = AuthState.Unauthenticated
         }
     }
