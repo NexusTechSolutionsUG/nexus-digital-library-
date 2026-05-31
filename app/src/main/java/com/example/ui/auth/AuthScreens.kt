@@ -218,9 +218,9 @@ fun AuthEntryScreen(
                                         focusManager.clearFocus()
                                         viewModel.signUpStudent(fullName, studentId, password)
                                     },
-                                    onSignUpStaff = { fullName, email, password, role ->
+                                    onSignUpStaff = { fullName, email, password, role, staffAccessCode ->
                                         focusManager.clearFocus()
-                                        viewModel.signUp(fullName, email, password, role)
+                                        viewModel.signUpStaff(fullName, email, password, role, staffAccessCode)
                                     },
                                     onNavigateToLogin = { isSigningUp = false },
                                     onBackToCategories = { selectedCategory = null }
@@ -232,9 +232,9 @@ fun AuthEntryScreen(
                                         focusManager.clearFocus()
                                         viewModel.loginWithStudentId(studentId, password)
                                     },
-                                    onLoginWithEmail = { email, password ->
+                                    onLoginWithEmail = { email, password, loginTab ->
                                         focusManager.clearFocus()
-                                        viewModel.login(email, password)
+                                        viewModel.login(email, password, loginTab)
                                     },
                                     onNavigateToSignUp = { isSigningUp = true },
                                     onBackToCategories = { selectedCategory = null }
@@ -256,7 +256,7 @@ enum class LoginTab {
 private fun LoginView(
     initialTab: LoginTab,
     onLoginWithStudentId: (String, String) -> Unit,
-    onLoginWithEmail: (String, String) -> Unit,
+    onLoginWithEmail: (String, String, LoginTab) -> Unit,
     onNavigateToSignUp: () -> Unit,
     onBackToCategories: () -> Unit
 ) {
@@ -518,7 +518,7 @@ private fun LoginView(
                     if (activeTab == LoginTab.STUDENT) {
                         onLoginWithStudentId(studentId, password)
                     } else {
-                        onLoginWithEmail(email, password)
+                        onLoginWithEmail(email, password, activeTab)
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
@@ -537,14 +537,14 @@ private fun LoginView(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Don't have a library profile? Register here",
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
+                text = "Registration is disabled. School administrator approval is required.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                fontWeight = FontWeight.Normal,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .clickable { onNavigateToSignUp() }
                     .padding(8.dp)
-                    .testTag("navigate_signup_button")
+                    .testTag("restricted_registration_text")
             )
         }
     }
@@ -629,29 +629,10 @@ private fun LoginView(
 private fun SignUpView(
     initialCategory: LoginTab,
     onSignUpStudent: (String, String, String) -> Unit,
-    onSignUpStaff: (String, String, String, UserRole) -> Unit,
+    onSignUpStaff: (String, String, String, UserRole, String) -> Unit,
     onNavigateToLogin: () -> Unit,
     onBackToCategories: () -> Unit
 ) {
-    val initialRole = remember(initialCategory) {
-        when (initialCategory) {
-            LoginTab.TEACHER -> UserRole.TEACHER
-            LoginTab.LIBRARIAN -> UserRole.LIBRARIAN
-            LoginTab.ADMINISTRATOR -> UserRole.ADMIN
-            else -> UserRole.TEACHER
-        }
-    }
-    var fullName by remember { mutableStateOf("Aaron Wancha") }
-    // Maintain separate inputs for student selection vs staff
-    var studentId by remember { mutableStateOf("S4A-023") }
-    var email by remember { mutableStateOf("teacher@nexustech.edu") }
-    
-    var password by remember { mutableStateOf("8585@@") }
-    var selectedRole by remember(initialRole) { mutableStateOf(initialRole) }
-    var passwordVisible by remember { mutableStateOf(false) }
-
-    val isStudent = selectedRole == UserRole.STUDENT
-
     Card(
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -682,7 +663,7 @@ private fun SignUpView(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Register Library Profile",
+                    text = "Registration Restricted",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -690,201 +671,45 @@ private fun SignUpView(
                 )
             }
 
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                label = { Text("Full Name (First and Last)") },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "NameIcon") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("auth_name_input")
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Dynamic identification inputs (Student ID vs Email)
-            if (isStudent) {
-                OutlinedTextField(
-                    value = studentId,
-                    onValueChange = { studentId = it },
-                    label = { Text("Student ID") },
-                    placeholder = { Text("e.g. S4A-023") },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Badge, contentDescription = "BadgeIcon") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Next
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("auth_signup_student_id_input")
-                )
-            } else {
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Staff Email Address") },
-                    placeholder = { Text("e.g. name@nexustech.edu") },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "EmailIcon") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("auth_signup_email_input")
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password (6+ characters)") },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "PasswordIcon") },
-                trailingIcon = {
-                    val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(imageVector = image, contentDescription = "TogglePassword")
-                    }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("auth_signup_password_input")
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = "Registration Locked Icon",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(64.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Library Role Assignment",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(bottom = 6.dp)
+                text = "Registration is Disabled",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
 
-            // Segmented-style Role selection Layout
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-            ) {
-                UserRole.values().forEach { role ->
-                    // Exclude SUPER_ADMIN and STUDENT from standard signup since students can't self-register
-                    if (role != UserRole.SUPER_ADMIN && role != UserRole.STUDENT) {
-                        val isSelected = selectedRole == role
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                )
-                                .clickable { selectedRole = role }
-                                .padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = { selectedRole = role }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = role.displayName,
-                                fontSize = 14.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Beautiful informative alert card regarding credentials & verification policy
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isStudent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Policy Info Icon",
-                        tint = if (isStudent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isStudent) {
-                            "💡 Student convenience rule: Student accounts bypass verification. Sign up and access instantly using your Student ID!"
-                        } else {
-                            "🔒 Security Compliance: Staff profiles (Teachers / Librarians / Admins) require an active email address & verification inbox link before logging in."
-                        },
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isStudent) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
+            Text(
+                text = "Public registration is disabled in this school library application. Student, Teacher, Librarian, and Administrator profiles must be created exclusively by authorized system administrators.",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { 
-                    if (isStudent) {
-                        onSignUpStudent(fullName, studentId, password)
-                    } else {
-                        onSignUpStaff(fullName, email, password, selectedRole)
-                    }
-                },
+                onClick = onNavigateToLogin,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
-                    .testTag("signup_button")
+                    .testTag("signup_back_to_login_button")
             ) {
-                Text("Register Profile", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Return to Secure Login", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Already have an account? Sign In",
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .clickable { onNavigateToLogin() }
-                    .padding(8.dp)
-                    .testTag("navigate_login_button")
-            )
         }
     }
 }
@@ -917,7 +742,7 @@ fun CategorySelectionScreen(
             Spacer(modifier = Modifier.height(6.dp))
             
             Text(
-                text = "Choose your workspace department to log in or register",
+                text = "Choose your department to sign in to your dashboard",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

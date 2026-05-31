@@ -264,7 +264,7 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
         val cleanId = studentId.uppercase().trim()
         val storedEmail = sharedPreferences.getString("id_to_email_$cleanId", null)
         if (storedEmail != null) return storedEmail
-        return "${cleanId.lowercase()}@student.nexus.edu"
+        return null
     }
 
     override fun lookupStudentIdForEmail(email: String): String? {
