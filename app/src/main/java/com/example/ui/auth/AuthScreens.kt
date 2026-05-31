@@ -31,6 +31,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.auth.UserRole
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.animation.core.tween
 
 @Composable
 fun AuthEntryScreen(
@@ -39,6 +44,8 @@ fun AuthEntryScreen(
 ) {
     var isSigningUp by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf<LoginTab?>(null) }
+    var showStaffPortals by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
     val authState by viewModel.authState.collectAsState()
     val focusManager = LocalFocusManager.current
 
@@ -69,6 +76,7 @@ fun AuthEntryScreen(
             verticalArrangement = Arrangement.Center
         ) {
             // Header Application Logo & Brand Title
+            // Hidden staff portal reveal - UI only, not a security mechanism
             Image(
                 painter = painterResource(id = com.example.R.drawable.nexus_logo),
                 contentDescription = "Nexus Tech Solutions Logo",
@@ -76,6 +84,25 @@ fun AuthEntryScreen(
                     .size(96.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .padding(bottom = 8.dp)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val completed = kotlinx.coroutines.withTimeoutOrNull(3000) {
+                                    var upEvent = false
+                                    while (!upEvent) {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.any { !it.pressed }) {
+                                            upEvent = true
+                                        }
+                                    }
+                                }
+                                if (completed == null) {
+                                    showStaffPortals = !showStaffPortals
+                                }
+                            }
+                        }
+                    }
             )
 
             Text(
@@ -208,6 +235,7 @@ fun AuthEntryScreen(
                         val currentCategory = selectedCategory
                         if (currentCategory == null) {
                             CategorySelectionScreen(
+                                showStaffPortals = showStaffPortals,
                                 onCategorySelected = { selectedCategory = it }
                             )
                         } else {
@@ -716,6 +744,7 @@ private fun SignUpView(
 
 @Composable
 fun CategorySelectionScreen(
+    showStaffPortals: Boolean,
     onCategorySelected: (LoginTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -780,70 +809,106 @@ fun CategorySelectionScreen(
                 )
             )
             
+            val studentCategory = categories.first { it.tab == LoginTab.STUDENT }
+            val staffCategories = categories.filter { it.tab != LoginTab.STUDENT }
+
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                categories.forEach { item ->
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onCategorySelected(item.tab) }
-                            .testTag("category_select_${item.tab.name.lowercase()}")
+                // By default, display only the Student Portal card/button.
+                CategoryCard(item = studentCategory, onCategorySelected = onCategorySelected)
+
+                // Hidden staff portal reveal - UI only, not a security mechanism
+                AnimatedVisibility(
+                    visible = showStaffPortals,
+                    enter = fadeIn(animationSpec = tween(600)) + expandVertically()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(top = 12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(item.color.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title,
-                                    tint = item.color,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.title,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = item.subtitle,
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            
-                            Icon(
-                                imageVector = Icons.Default.ArrowForward,
-                                contentDescription = "Navigate to Login",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
-                            )
+                        Text(
+                            text = "Staff Portals",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .align(Alignment.Start)
+                                .padding(bottom = 4.dp, start = 4.dp)
+                        )
+                        
+                        staffCategories.forEach { item ->
+                            CategoryCard(item = item, onCategorySelected = onCategorySelected)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CategoryCard(
+    item: CategoryItem,
+    onCategorySelected: (LoginTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onCategorySelected(item.tab) }
+            .testTag("category_select_${item.tab.name.lowercase()}")
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(item.color.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = item.title,
+                    tint = item.color,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = item.subtitle,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "Navigate to Login",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

@@ -18,14 +18,72 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     val repository = LibraryRepository(db.libraryDao)
 
     // User session state
-    val studentName = MutableStateFlow("Alex Rivera (Grade 11)")
+    val studentName = MutableStateFlow("Alex Rivera")
     val studentId = MutableStateFlow("StudentID-2026-HSL")
     val readingStreak = MutableStateFlow(5) // Default academic reading streak
+
+    // Profile detail states
+    val classLevel = MutableStateFlow("S3")
+    val streamName = MutableStateFlow("Stream A")
+    val combination = MutableStateFlow<String?>(null)
 
     // Multi-role State
     val currentRole = MutableStateFlow(UserRole.STUDENT)
 
-    fun setSessionUser(firstName: String?, lastName: String?, email: String?, roleStr: String?) {
+    private fun deriveAcademicProfile(studentId: String): Triple<String, String, String?> {
+        val cleanId = studentId.toUpperCase().trim()
+        
+        // Match standard format e.g. S4B-101, S5PEM-102
+        val classPart = when {
+            cleanId.contains("S1") || cleanId.startsWith("S1") -> "S1"
+            cleanId.contains("S2") || cleanId.startsWith("S2") -> "S2"
+            cleanId.contains("S3") || cleanId.startsWith("S3") -> "S3"
+            cleanId.contains("S4") || cleanId.startsWith("S4") -> "S4"
+            cleanId.contains("S5") || cleanId.startsWith("S5") -> "S5"
+            cleanId.contains("S6") || cleanId.startsWith("S6") -> "S6"
+            else -> "S3" // Default fallback
+        }
+        
+        // Determine stream or combination
+        val isALevel = classPart == "S5" || classPart == "S6"
+        val streamPart = if (isALevel) {
+            when {
+                cleanId.contains("ARTS") || cleanId.contains("HEG") -> "Arts"
+                cleanId.contains("MEG") -> "Arts"
+                else -> "Science"
+            }
+        } else {
+            val streamChar = when {
+                cleanId.contains("B") -> 'B'
+                cleanId.contains("C") -> 'C'
+                cleanId.contains("D") -> 'D'
+                else -> 'A'
+            }
+            "Stream $streamChar"
+        }
+        
+        val combinationPart = if (isALevel) {
+            when {
+                cleanId.contains("HEG") -> "HEG"
+                cleanId.contains("MEG") -> "MEG"
+                else -> "PEM" // Default A-level combo
+            }
+        } else {
+            null
+        }
+        
+        return Triple(classPart, streamPart, combinationPart)
+    }
+
+    fun setSessionUser(
+        firstName: String?,
+        lastName: String?,
+        email: String?,
+        roleStr: String?,
+        classLevelVal: String? = null,
+        streamNameVal: String? = null,
+        combinationVal: String? = null
+    ) {
         val fullName = listOfNotNull(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
             .ifBlank { email?.substringBefore("@") } ?: "School User"
         studentName.value = fullName
@@ -40,12 +98,58 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         }
         currentRole.value = mappedRole
 
+        var finalId = "StudentID-2026-HSL"
         if (mappedRole == UserRole.STUDENT && email != null) {
             val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
             val lookedUpId = prefs.getString("email_to_id_$email", null) ?: email.substringBefore("@").uppercase()
             studentId.value = lookedUpId
+            finalId = lookedUpId
         } else {
             studentId.value = email ?: "StudentID-2026-HSL"
+            finalId = email ?: "StudentID-2026-HSL"
+        }
+
+        // Initialize academic profile attributes for students
+        if (mappedRole == UserRole.STUDENT) {
+            val parsedProfile = deriveAcademicProfile(finalId)
+            
+            val finalClass = if (!classLevelVal.isNullOrBlank()) classLevelVal else parsedProfile.first
+            val finalStream = if (!streamNameVal.isNullOrBlank()) streamNameVal else parsedProfile.second
+            
+            val isOLevel = finalClass in listOf("S1", "S2", "S3", "S4")
+            val finalCombination = if (isOLevel) {
+                null
+            } else {
+                if (!combinationVal.isNullOrBlank()) combinationVal else (parsedProfile.third ?: "PEM")
+            }
+            
+            classLevel.value = finalClass
+            streamName.value = finalStream
+            combination.value = finalCombination
+
+            // Automatically select academicClassLevel
+            val classEnum = when (finalClass) {
+                "S1" -> AcademicClassLevel.S1
+                "S2" -> AcademicClassLevel.S2
+                "S3" -> AcademicClassLevel.S3
+                "S4" -> AcademicClassLevel.S4
+                "S5" -> AcademicClassLevel.S5
+                "S6" -> AcademicClassLevel.S6
+                else -> AcademicClassLevel.S3
+            }
+            selectedClassLevel.value = classEnum
+
+            // Automatically set selectedSubjectId to first subject of student's class
+            val match = allAcademicSubjects.value.firstOrNull { it.classLevel == classEnum }
+            if (match != null) {
+                selectedSubjectId.value = if (!isOLevel && finalCombination != null) {
+                    allAcademicSubjects.value.firstOrNull { 
+                        it.classLevel == classEnum && it.name.contains(finalCombination, ignoreCase = true) 
+                    }?.id ?: match.id
+                } else {
+                    match.id
+                }
+            }
         }
     }
 
@@ -123,9 +227,48 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         searchQuery,
         selectedCategory,
         searchSortOrder,
-        searchFilterAvailability
-    ) { allBooks, query, category, sort, availOnly ->
+        searchFilterAvailability,
+        currentRole,
+        classLevel,
+        combination
+    ) { allBooks, query, category, sort, availOnly, role, level, comb ->
         allBooks.filter { book ->
+            // Academic level and combination-specific filtering for students
+            if (role == UserRole.STUDENT) {
+                val isOLevel = level in listOf("S1", "S2", "S3", "S4")
+                if (isOLevel) {
+                    when (level) {
+                        "S1", "S2" -> {
+                            // Hide advanced physics and cosmology for junior students
+                            book.id != "sci-001" 
+                        }
+                        else -> true
+                    }
+                } else {
+                    // A-Level (S5-S6): Filter strictly by combination!
+                    when (comb) {
+                        "PEM" -> {
+                            // Physics, Economics, Math
+                            // Show Science & Tech, Self-Growth, Sapiens
+                            book.category in listOf("Science & Tech", "Self-Growth") || book.id == "his-002"
+                        }
+                        "MEG" -> {
+                            // Math, Economics, Geography
+                            // Show Science & Tech, Self-Growth
+                            book.category in listOf("Science & Tech", "Self-Growth")
+                        }
+                        "HEG" -> {
+                            // History, Economics, Geography
+                            // Show History, Self-Growth, Literature
+                            book.category in listOf("History", "Self-Growth", "Literature")
+                        }
+                        else -> true
+                    }
+                }
+            } else {
+                true
+            }
+        }.filter { book ->
             val matchesCategory = category == "All" || book.category == category
             val matchesSearch = query.isBlank() || 
                     book.title.contains(query, ignoreCase = true) ||
@@ -253,7 +396,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         // S6 Subjects
         Subject(
             id = "s6-econ",
-            name = "S6 Economics (MEG/HEL)",
+            name = "S6 Economics (PEM/MEG/HEG)",
             classLevel = AcademicClassLevel.S6,
             teachers = listOf(TeacherProfile("t_nam", "Ms. Namusoke", "", "Economics", 38, 3, "f.namusoke@nexustech.edu")),
             resources = listOf(
@@ -271,6 +414,68 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 AcademicResource("s6-ict-t1", "Subsidiary ICT Practice Handbook", ResourceCategory.TEXTBOOKS, "3.2 MB", "Advanced spreadsheet formulations, database modeling and systems integrity checklists.", "sub_ict_guide_s6", "Mr. Ssewankambo")
             ),
             description = "Computing systems troubleshooting, algorithms basics, simple databases and networking protocols."
+        ),
+        // S5 Subjects
+        Subject(
+            id = "s5-math-pem",
+            name = "S5 Mathematics (PEM/MEG)",
+            classLevel = AcademicClassLevel.S5,
+            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@nexustech.edu")),
+            resources = listOf(
+                AcademicResource("s5-math-n1", "Trigonometric Formulations & Proofs", ResourceCategory.NOTES, "1.4 MB", "Advanced trigonometry notes covering product-to-sum expansion equations.", "math_trig_s5", "Mr. Okello")
+            ),
+            description = "Advanced calculus foundations, analytical trigonometry, probability vectors, and linear equations."
+        ),
+        Subject(
+            id = "s5-phys-pem",
+            name = "S5 Physics (PEM)",
+            classLevel = AcademicClassLevel.S5,
+            teachers = listOf(TeacherProfile("t_phy", "Mr. Kigozi", "", "Physics", 29, 2, "g.kigozi@nexustech.edu")),
+            resources = listOf(
+                AcademicResource("s5-phys-n1", "Quantum Mechanics & Wave Theory Notes", ResourceCategory.NOTES, "2.2 MB", "Advanced atomic orbits and photoelectronic effects equations.", "physics_notes_quantum", "Mr. Kigozi")
+            ),
+            description = "Modern wave theory mechanics, thermodynamics, fluid dynamics and electrostatic fields."
+        ),
+        Subject(
+            id = "s5-geog-heg",
+            name = "S5 Geography (MEG/HEG)",
+            classLevel = AcademicClassLevel.S5,
+            teachers = listOf(TeacherProfile("t_geo", "Mrs. Mugisha", "", "Geography", 31, 0, "m.mugisha@nexustech.edu")),
+            resources = listOf(
+                AcademicResource("s5-geog-p1", "East Africa Topographical Mapping Guide", ResourceCategory.PAST_PAPERS, "3.1 MB", "Analysis of coordinate systems and practical mapping contours.", "geography_map_east_africa", "Mrs. Mugisha")
+            ),
+            description = "Physical geography contours, geomorphology formations, and economic trading channels."
+        ),
+        Subject(
+            id = "s5-history-heg",
+            name = "S5 History (HEG)",
+            classLevel = AcademicClassLevel.S5,
+            teachers = listOf(TeacherProfile("t_his", "Mr. Mukasa", "", "History", 40, 3, "s.mukasa@nexustech.edu")),
+            resources = listOf(
+                AcademicResource("s5-history-n1", "Modern African Decolonization Processes", ResourceCategory.NOTES, "2.5 MB", "Chronology of the rise of nationalist movements post-WWII.", "history_notes_african_decolonization", "Mr. Mukasa")
+            ),
+            description = "In-depth history of African political evolution, East African colonial dynamics, and international relations."
+        ),
+        // Additional S6 Subjects for combinations
+        Subject(
+            id = "s6-phys-pem",
+            name = "S6 Physics (PEM)",
+            classLevel = AcademicClassLevel.S6,
+            teachers = listOf(TeacherProfile("t_phy", "Mr. Kigozi", "", "Physics", 29, 2, "g.kigozi@nexustech.edu")),
+            resources = listOf(
+                AcademicResource("s6-phys-n1", "Electromagnetism & AC Circuit Theory", ResourceCategory.NOTES, "1.8 MB", "Formulas and derivations for alternating currents and electric motors.", "physics_notes_ac_circuits", "Mr. Kigozi")
+            ),
+            description = "Candidate curriculum wave theory, magnetic field physics, atomic model developments and electronics."
+        ),
+        Subject(
+            id = "s6-history-heg",
+            name = "S6 History (HEG)",
+            classLevel = AcademicClassLevel.S6,
+            teachers = listOf(TeacherProfile("t_his", "Mr. Mukasa", "", "History", 40, 3, "s.mukasa@nexustech.edu")),
+            resources = listOf(
+                AcademicResource("s6-history-n1", "Cold War & International Sanctions", ResourceCategory.NOTES, "1.9 MB", "Global politics, military treaty alliances, and geopolitical shifts.", "history_notes_cold_war", "Mr. Mukasa")
+            ),
+            description = "Global modern histories, treaty organizations, and international conflicts analysis."
         )
     ))
 
@@ -350,8 +555,79 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun selectAcademicSubject(subjId: String) {
         selectedSubjectId.value = subjId
         selectedResourceCategory.value = null
+        
+        // Subject-specific quizzes and flashcards corresponding directly to class level & combinations!
+        val targetSubject = allAcademicSubjects.value.find { it.id == subjId }
+        val subjectName = targetSubject?.name ?: "Curriculum"
+        
+        // Build customized dynamic question list based on the subject!
+        val newQuestions = when {
+            subjId.contains("math") -> listOf(
+                RevisionQuestion("mq1", "What is the degree and roots of the quadratic function f(x) = x^2 - 5x + 6?", listOf("Degree 1: roots x=2,3", "Degree 2: roots x=2,3", "Degree 2: roots x=-2,-3", "Degree 3: roots x=1,6"), 1, "A quadratic equation always has degree 2. Factoring x^2 - 5x + 6 gives (x-2)(x-3)=0."),
+                RevisionQuestion("mq2", "Find the value of limit as x approaches 0 of sin(x)/x.", listOf("0", "Undefined", "1", "Infinity"), 2, "By L'Hospital's rule or basic trigonometric limit theorem, limit as x->0 of sin(x)/x equals 1."),
+                RevisionQuestion("mq3", "What is the sum of interior angles of a regular hexagon?", listOf("360 degrees", "540 degrees", "720 degrees", "180 degrees"), 2, "Using the formula (n-2)*180, we get (6-2)*180 = 4*180 = 720 degrees.")
+            )
+            subjId.contains("phys") -> listOf(
+                RevisionQuestion("pq1", "Which of the following describes the quantum nature of electromagnetic radiation?", listOf("Wave theory only", "Ray theory only", "Wave-particle duality", "Geometrical refraction"), 2, "Electromagnetic radiation exhibits both wave and particle behaviors (photoelectric effect)."),
+                RevisionQuestion("pq2", "State the SI unit of magnetic flux density.", listOf("Tesla (T)", "Weber (Wb)", "Farad (F)", "Henry (H)"), 0, "Tesla is the SI unit of magnetic flux density. One Tesla equals one Weber per square meter."),
+                RevisionQuestion("pq3", "In an AC circuit, what component causes current to lag voltage by exactly 90 degrees?", listOf("Pure capacitor", "Pure resistor", "Pure inductor", "Silicon diode"), 2, "An inductor stores energy in magnetic fields, causing current to lag voltage by 90 degrees.")
+            )
+            subjId.contains("econ") -> listOf(
+                RevisionQuestion("eq1", "What type of inflation is caused by a persistent increase in national aggregate demand?", listOf("Cost-push inflation", "Demand-pull inflation", "Hyperinflation", "Imported inflation"), 1, "Demand-pull inflation occurs when aggregate demand outpaces aggregate supply in an economy."),
+                RevisionQuestion("eq2", "Which curve shows the relationship between tax rates and total tax revenue?", listOf("Gini curve", "Lorenz curve", "Phillips curve", "Laffer curve"), 3, "The Laffer curve suggests there is an optimum tax rate that maximizes total government revenue.")
+            )
+            subjId.contains("geog") -> listOf(
+                RevisionQuestion("gq1", "What index is commonly used to measure the rate of tectonic folding and faulting?", listOf("Richter Scale", "Mercalli Scale", "Orogeny Coefficient", "None of the above"), 0, "The Richter scale measures earthquake magnitude released along fault lines during tectonic movements."),
+                RevisionQuestion("gq2", "Which geographic contour layout indicates a steep cliff-like precipice?", listOf("Spaced out parallel contours", "Intersecting contour lines", "Very closely packed contour lines", "Concentric circle contours"), 2, "Closely packed contour lines indicate a high gradient cliff or steep mountain rise.")
+            )
+            subjId.contains("history") -> listOf(
+                RevisionQuestion("hq1", "Which major treaty officially brought WWII conflict, decolonization, and League of Nation reorganizations to a close?", listOf("Treaty of Versailles", "Paris Peace Treaties (1947)", "Yalta Agreement", "Berlin Act (1884)"), 1, "The Paris Peace Treaties of 1947 established borders, reparations, and colonies distribution post-WWII."),
+                RevisionQuestion("hq2", "In which year did Uganda successfully secure full Independence from British colonial rule?", listOf("1958", "1961", "1962", "1966"), 2, "Uganda attained independence on October 9, 1962, under Milton Obote and Kabaka Mutesa II.")
+            )
+            subjId.contains("ict") -> listOf(
+                RevisionQuestion("iq1", "Which network protocol is primarily responsible for assigning dynamic IP addresses to home/school machines?", listOf("HTTP", "DHCP", "FTP", "SMTP"), 1, "Dynamic Host Configuration Protocol (DHCP) automatically manages IP addresses on active subnets."),
+                RevisionQuestion("iq2", "What character must always prefix any advanced computing formulation block in Microsoft Excel?", listOf("$", "#", "=", "@"), 2, "An equals sign (=) tells spreadsheet engines that the following text represents an active formula.")
+            )
+            else -> listOf(
+                RevisionQuestion("q1", "Which cell powerhouse organelle coordinates energy operations?", listOf("Ribosome", "Chloroplast", "Mitochondrion", "Lysosome"), 2, "Mitochondria produce cellular ATP through the citric acid cycle."),
+                RevisionQuestion("q2", "What is the process of generating chemical energy without oxygen support?", listOf("Aerobic", "Anaerobic", "Photosynthesis", "Refraction"), 1, "Anaerobic respiration breaks down glucose in the absence of oxygen."),
+                RevisionQuestion("q3", "What pigment processes solar energy in chloroplasts?", listOf("Carotene", "Chlorophyll", "Xanthophyll", "Enzymes"), 1, "Chlorophyll captures red & blue light spectra for plant energy creation cycles.")
+            )
+        }
+        currentQuizQuestions.value = newQuestions
+        currentQuizIndex.value = 0
+        currentQuizScore.value = 0
+        selectedQuizAnswerIndex.value = null
+        quizCompletedStatus.value = false
+        
+        // Subject-specific dynamic flashcards
+        val newFlashcards = when {
+            subjId.contains("math") -> listOf(
+                StudyFlashcard("f1", "What are the coordinates of the turning point of y = ax^2 + bx + c?", "x = -b / (2a). Substitute x back into formula to solve y vertex."),
+                StudyFlashcard("f2", "Define Prime Number.", "An integer greater than 1 with exactly two divisors: 1 and itself.")
+            )
+            subjId.contains("phys") -> listOf(
+                StudyFlashcard("f1", "What is Faraday's law of induction?", "The induced electromotive force in a closed circuit is equal to the negative rate of change of magnetic flux."),
+                StudyFlashcard("f2", "Define a Photon.", "A discrete packet or bundle of quantum electromagnetic energy.")
+            )
+            subjId.contains("econ") -> listOf(
+                StudyFlashcard("f1", "What is Fiscal Policy?", "The use of taxation and government spending to influence level of economic activity."),
+                StudyFlashcard("f2", "Identify the Gini Coefficient range.", "0 representing absolute equality and 1 representing absolute inequality.")
+            )
+            subjId.contains("geog") -> listOf(
+                StudyFlashcard("f1", "Define a Rift Valley.", "A linear-shaped lowland between highlands or mountain ranges created by geologic faults.")
+            )
+            subjId.contains("history") -> listOf(
+                StudyFlashcard("f1", "Define Decolonization.", "The undoing of colonialism, where a nation establishes sovereign independence over its territory.")
+            )
+            else -> listOf(
+                StudyFlashcard("f1", "What does plant cell wall consist of?", "Cellulose provides mechanical structure & rigour."),
+                StudyFlashcard("f2", "Which organelle carries out photolysis of water molecules?", "Thylakoid membranes inside the chloroplast, powered by photons.")
+            )
+        }
+        activeFlashcardList.value = newFlashcards
+
         // Trigger simulation of analytics log
-        val subjectName = allAcademicSubjects.value.find { it.id == subjId }?.name ?: "Curriculum"
         studyAnalytics.value = studyAnalytics.value.map {
             if (it.subjectName == subjectName) {
                 it.copy(
@@ -770,8 +1046,22 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             chatMessages.value = chatMessages.value + userMsg
             aiIsTyping.value = true
 
+            // Build dynamic system instruction based on student profile
+            val nameVal = studentName.value
+            val classVal = classLevel.value ?: "S3"
+            val streamVal = streamName.value ?: ""
+            val combinationVal = combination.value
+            val combinationText = if (!combinationVal.isNullOrBlank()) "with combination $combinationVal" else ""
+            
+            val dynamicSystemInstruction = """
+                You are Auden, a hyper-intelligent, friendly AI High School Librarian at Nexus Tech High School. 
+                You are assisting student $nameVal, who is in Class $classVal, Stream $streamVal $combinationText.
+                Ensure that all study recommendations, curriculum advice, book summaries, interactive revision, spelling quizzes, or educational flashcards align exactly with the appropriate syllabus level of a Class $classVal student $combinationText. 
+                Never reference higher or lower level curriculum standards unless requested. Speak directly to $nameVal in a motivating and highly professional academic companion tone.
+            """.trimIndent()
+
             // Send to Gemini Rest Service
-            val responseText = GeminiApiService.generateContent(chatMessages.value)
+            val responseText = GeminiApiService.generateContent(chatMessages.value, systemInstruction = dynamicSystemInstruction)
             
             val aiMsg = ChatMessage(
                 id = java.util.UUID.randomUUID().toString(),

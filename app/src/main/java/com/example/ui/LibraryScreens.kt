@@ -63,6 +63,10 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
     val activeViewerBookId by viewModel.activeViewerBookId.collectAsState()
     val currentRole by viewModel.currentRole.collectAsState()
 
+    val classLevel by viewModel.classLevel.collectAsState()
+    val streamName by viewModel.streamName.collectAsState()
+    val combination by viewModel.combination.collectAsState()
+
     if (activeViewerBookId != null) {
         UniversalFileViewerScreen(
             viewModel = viewModel,
@@ -133,7 +137,14 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                         )
                 ) {
                     // High School Header Row
-                    SchoolHeaderPanel(studentName, readingStreak)
+                    SchoolHeaderPanel(
+                        studentName = studentName,
+                        streak = readingStreak,
+                        classLevel = classLevel,
+                        streamName = streamName,
+                        combination = combination,
+                        role = currentRole
+                    )
 
                     // Dynamic view based on tab index
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -332,7 +343,14 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
 }
 
 @Composable
-fun SchoolHeaderPanel(studentName: String, streak: Int) {
+fun SchoolHeaderPanel(
+    studentName: String,
+    streak: Int,
+    classLevel: String? = null,
+    streamName: String? = null,
+    combination: String? = null,
+    role: UserRole = UserRole.STUDENT
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -373,6 +391,26 @@ fun SchoolHeaderPanel(studentName: String, streak: Int) {
                     color = Color.White,
                     fontWeight = FontWeight.Black
                 )
+                if (role == UserRole.STUDENT) {
+                    val profileText = buildString {
+                        append(classLevel ?: "S3")
+                        if (!streamName.isNullOrBlank()) {
+                            append(" | ")
+                            append(streamName)
+                        }
+                        if (!combination.isNullOrBlank()) {
+                            append(" | ")
+                            append(combination)
+                        }
+                    }
+                    Text(
+                        text = profileText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
         }
 
@@ -1830,6 +1868,9 @@ fun StudentCardTab(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
     val studentName by viewModel.studentName.collectAsState()
     val studentId by viewModel.studentId.collectAsState()
     val streak by viewModel.readingStreak.collectAsState()
+    val classLevel by viewModel.classLevel.collectAsState()
+    val streamName by viewModel.streamName.collectAsState()
+    val combination by viewModel.combination.collectAsState()
     
     val allBorrowRecords by viewModel.allBorrowRecords.collectAsState()
     val checkedOutCount = allBorrowRecords.count { it.returnDate == null }
@@ -1848,7 +1889,13 @@ fun StudentCardTab(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        VirtualLibraryCard(studentName, studentId)
+        VirtualLibraryCard(
+            studentName = studentName,
+            studentId = studentId,
+            classLevel = classLevel,
+            streamName = streamName,
+            combination = combination
+        )
 
         if (!isEditingProfile) {
             Card(
@@ -1985,7 +2032,13 @@ fun StudentCardTab(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
 }
 
 @Composable
-fun VirtualLibraryCard(studentName: String, studentId: String) {
+fun VirtualLibraryCard(
+    studentName: String,
+    studentId: String,
+    classLevel: String? = null,
+    streamName: String? = null,
+    combination: String? = null
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -2044,6 +2097,24 @@ fun VirtualLibraryCard(studentName: String, studentId: String) {
                         fontSize = 12.sp,
                         color = Color.White.copy(alpha = 0.7f),
                         fontFamily = FontFamily.Monospace
+                    )
+                    val detailsText = buildString {
+                        append(classLevel ?: "S3")
+                        if (!streamName.isNullOrBlank()) {
+                            append(" | ")
+                            append(streamName)
+                        }
+                        if (!combination.isNullOrBlank()) {
+                            append(" | ")
+                            append(combination)
+                        }
+                    }
+                    Text(
+                        text = detailsText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AcademicGoldLight,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
 
@@ -3786,12 +3857,43 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
     val personalFilter by viewModel.personalAssignedSubjectsOnly.collectAsState()
     val allSubjects by viewModel.allAcademicSubjects.collectAsState()
     val curriculumActiveTab by viewModel.curriculumActiveTab.collectAsState()
-    
-    // Derived filtering based on personalized assigned class
-    val filteredSubjects = if (personalFilter) {
-        allSubjects.filter { it.classLevel == AcademicClassLevel.S3 }
+
+    val currentRole by viewModel.currentRole.collectAsState()
+    val studentClassVal by viewModel.classLevel.collectAsState()
+    val studentCombination by viewModel.combination.collectAsState()
+
+    val studentClassEnum = when (studentClassVal) {
+        "S1" -> AcademicClassLevel.S1
+        "S2" -> AcademicClassLevel.S2
+        "S3" -> AcademicClassLevel.S3
+        "S4" -> AcademicClassLevel.S4
+        "S5" -> AcademicClassLevel.S5
+        "S6" -> AcademicClassLevel.S6
+        else -> AcademicClassLevel.S3
+    }
+
+    // Derived filtering based on student class and academic combination
+    val filteredSubjects = if (personalFilter && currentRole == UserRole.STUDENT) {
+        allSubjects.filter { subj ->
+            subj.classLevel == studentClassEnum && (
+                studentClassEnum.isAdvanced.not() || // O-level gets everything for that class
+                studentCombination == null || // if no combination, show all
+                subj.name.contains(studentCombination!!, ignoreCase = true) || 
+                subj.description.contains(studentCombination!!, ignoreCase = true) ||
+                subj.id.contains("sub-ict", ignoreCase = true) // Subsidiary ICT is taken by everyone
+            )
+        }
     } else {
-        allSubjects.filter { it.classLevel == selectedClass }
+        allSubjects.filter { subj ->
+            subj.classLevel == selectedClass && (
+                currentRole != UserRole.STUDENT ||
+                selectedClass.isAdvanced.not() ||
+                studentCombination == null ||
+                subj.name.contains(studentCombination!!, ignoreCase = true) ||
+                subj.description.contains(studentCombination!!, ignoreCase = true) ||
+                subj.id.contains("sub-ict", ignoreCase = true)
+            )
+        }
     }
 
     val selectedSubject = allSubjects.find { it.id == selectedSubjectId }
@@ -3865,7 +3967,7 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
                         color = MaterialTheme.colorScheme.primary
                     )
                     
-                    // My Assigned S3 Subjects filter checkbox
+                    // Dynamic Assigned Subjects filter checkbox
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -3888,7 +3990,8 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
                             }
                         }
-                        Text("My Assigned S3 Only", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        val prefix = if (currentRole == UserRole.STUDENT) "My Assigned $studentClassVal" else "My Assigned S3 Only"
+                        Text(prefix, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -3921,7 +4024,7 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
                                     )
-                                    if (level == AcademicClassLevel.S3) {
+                                    if (currentRole == UserRole.STUDENT && level == studentClassEnum) {
                                         Text(
                                             "Your Class",
                                             fontSize = 7.sp,
@@ -3945,8 +4048,9 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            val combinationLabel = if (studentCombination != null) " with combination $studentCombination" else ""
                             Text(
-                                text = "Personalized Mode Active: Showing matches for Senior 3 student Alex Rivera. Toggle the filter above to browse other classes S1-S6.",
+                                text = "Personalized Mode Active: Showing matches for $studentClassVal student $studentName$combinationLabel. Toggle the filter above to browse other classes S1-S6.",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -4096,6 +4200,9 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
 @Composable
 fun AcademicInteractiveHeroHeader(viewModel: LibraryViewModel) {
     val countdowns by viewModel.examCountdownList.collectAsState()
+    val studentName by viewModel.studentName.collectAsState()
+    val classLevel by viewModel.classLevel.collectAsState()
+    val combination by viewModel.combination.collectAsState()
     
     Card(
         modifier = Modifier
@@ -4112,8 +4219,9 @@ fun AcademicInteractiveHeroHeader(viewModel: LibraryViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    val firstName = studentName.substringBefore(" ")
                     Text(
-                        "Alex's Revision Deck",
+                        "$firstName's Revision Deck",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -4129,7 +4237,8 @@ fun AcademicInteractiveHeroHeader(viewModel: LibraryViewModel) {
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text("Class: S3", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    val classBadge = if (!combination.isNullOrBlank()) "Class: $classLevel ($combination)" else "Class: $classLevel"
+                    Text(classBadge, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
