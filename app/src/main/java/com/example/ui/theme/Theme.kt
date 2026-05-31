@@ -19,9 +19,13 @@ private val DarkColorScheme =
     onSecondary = DarkSlate,
     tertiary = SageGreen,
     background = DarkSlate,
-    surface = Color(0xFF1E293B),
+    surface = Color(0xFF121B2A), // Elegant customized card slate
     onBackground = ParchmentWhite,
-    onSurface = ParchmentWhite
+    onSurface = ParchmentWhite,
+    surfaceVariant = Color(0xFF1E293B), // High-tech card detail
+    onSurfaceVariant = Color(0xFF94A3B8), // Muted details
+    outlineVariant = Color(0xFF334155), // Premium subtle lines
+    outline = Color(0xFF475569)
   )
 
 private val LightColorScheme =
@@ -34,7 +38,11 @@ private val LightColorScheme =
     background = ParchmentWhite,
     surface = SoftGray,
     onBackground = TextDark,
-    onSurface = TextDark
+    onSurface = TextDark,
+    surfaceVariant = Color(0xFFE2E8F0),
+    onSurfaceVariant = TextLight,
+    outlineVariant = BorderGray,
+    outline = TextLight
   )
 
 @Composable

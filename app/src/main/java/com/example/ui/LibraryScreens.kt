@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.scale
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -202,18 +204,46 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                         ) {
                             Column {
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "NEXUS INTERACTIVE",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = com.example.R.drawable.nexus_logo),
+                                        contentDescription = "Nexus Logo",
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                                RoundedCornerShape(8.dp)
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "NEXUS TECH",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            letterSpacing = 1.sp
+                                        )
+                                        Text(
+                                            text = "Staff Terminal",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
                                 Text(
                                     text = "Workspace: ${currentRole.name}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 16.dp)
                                 )
-                                Spacer(modifier = Modifier.height(24.dp))
 
                                 drawerItems.forEachIndexed { index, item ->
                                     val isSelected = staffSelectedTabSafe == index
@@ -313,10 +343,10 @@ fun SchoolHeaderPanel(studentName: String, streak: Int) {
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                brush = Brush.verticalGradient(
+                brush = Brush.horizontalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                        Color(0xFF090D16), // Dark outer space
+                        Color(0xFF131A26)  // Premium surface slate dark
                     )
                 )
             )
@@ -325,33 +355,45 @@ fun SchoolHeaderPanel(studentName: String, streak: Int) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(
-                text = "OAKRIDGE HIGH",
-                style = MaterialTheme.typography.labelSmall,
-                color = AcademicGoldLight,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = com.example.R.drawable.nexus_logo),
+                contentDescription = "Nexus Logo",
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
             )
-            Text(
-                text = "Digital Library Space",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "NEXUS TECH HIGH",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    text = "Digital Library Space",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Black
+                )
+            }
         }
 
         // Streak status indicator
         Row(
             modifier = Modifier
-                .background(Color.White.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.LocalFireDepartment,
                 contentDescription = "Streak",
-                tint = AcademicGoldLight,
+                tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))

@@ -23,6 +23,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Setup highly robust uncaught exception handler to prevent and clear corrupt login/state crash loops
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             android.util.Log.e("MainActivity", "Uncaught runtime crash on thread: ${thread.name}", throwable)
             try {
@@ -34,9 +35,13 @@ class MainActivity : ComponentActivity() {
             } catch (ex: Exception) {
                 // Ignore silently in crash path
             }
-            // Let the system handle the crash clean exit
-            android.os.Process.killProcess(android.os.Process.myPid())
-            java.lang.System.exit(10)
+            // Delegate to the standard default handler so the system can gracefully log, track, and handle the crash
+            if (defaultHandler != null) {
+                defaultHandler.uncaughtException(thread, throwable)
+            } else {
+                android.os.Process.killProcess(android.os.Process.myPid())
+                java.lang.System.exit(10)
+            }
         }
 
         try {

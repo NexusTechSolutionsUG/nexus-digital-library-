@@ -1,6 +1,7 @@
 package com.example.ui.auth
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -67,12 +69,12 @@ fun AuthEntryScreen(
             verticalArrangement = Arrangement.Center
         ) {
             // Header Application Logo & Brand Title
-            Icon(
-                imageVector = Icons.Default.MenuBook,
-                contentDescription = "Nexus Digital Library Logo",
-                tint = primaryColor,
+            Image(
+                painter = painterResource(id = com.example.R.drawable.nexus_logo),
+                contentDescription = "Nexus Tech Solutions Logo",
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(20.dp))
                     .padding(bottom = 8.dp)
             )
 
