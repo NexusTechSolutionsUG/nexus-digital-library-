@@ -54,7 +54,7 @@ data class Subject(
     val classLevel: AcademicClassLevel,
     val teachers: List<TeacherProfile>,
     val resources: List<AcademicResource>,
-    val description: String = "Oakridge high compliance subject"
+    val description: String = "Nexus Tech high compliance subject"
 ) : Serializable
 
 // Flashcard Interactive

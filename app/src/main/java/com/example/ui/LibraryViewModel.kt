@@ -84,17 +84,17 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     // SaaS Administration States
     val userModerationProfiles = MutableStateFlow<List<UserModerationProfile>>(listOf(
-        UserModerationProfile("u1", "Alex Rivera", "Grade 11", "Active", 0, "alex.rivera@oakridge.edu"),
-        UserModerationProfile("u2", "Marcus Chen", "Grade 12", "Flagged", 2, "marcus.chen@oakridge.edu"),
-        UserModerationProfile("u3", "Sarah Jenkins", "Grade 10", "Active", 0, "sarah.j@oakridge.edu"),
-        UserModerationProfile("u4", "Taylor Vance", "Grade 11", "Suspended", 5, "taylor.vance@oakridge.edu"),
-        UserModerationProfile("u5", "Emily Rodriguez", "Grade 12", "Active", 1, "emily.r@oakridge.edu")
+        UserModerationProfile("u1", "Alex Rivera", "Grade 11", "Active", 0, "alex.rivera@nexustech.edu"),
+        UserModerationProfile("u2", "Marcus Chen", "Grade 12", "Flagged", 2, "marcus.chen@nexustech.edu"),
+        UserModerationProfile("u3", "Sarah Jenkins", "Grade 10", "Active", 0, "sarah.j@nexustech.edu"),
+        UserModerationProfile("u4", "Taylor Vance", "Grade 11", "Suspended", 5, "taylor.vance@nexustech.edu"),
+        UserModerationProfile("u5", "Emily Rodriguez", "Grade 12", "Active", 1, "emily.r@nexustech.edu")
     ))
 
     val overdueItems = MutableStateFlow<List<OverdueItem>>(listOf(
-        OverdueItem("ov1", "Marcus Chen", "To Kill a Mockingbird", 4, 2.00, "marcus.chen@oakridge.edu"),
-        OverdueItem("ov2", "Taylor Vance", "Macbeth", 9, 4.50, "taylor.vance@oakridge.edu"),
-        OverdueItem("ov3", "Jordan Blake", "1984", 2, 1.00, "jordan.b@oakridge.edu")
+        OverdueItem("ov1", "Marcus Chen", "To Kill a Mockingbird", 4, 2.00, "marcus.chen@nexustech.edu"),
+        OverdueItem("ov2", "Taylor Vance", "Macbeth", 9, 4.50, "taylor.vance@nexustech.edu"),
+        OverdueItem("ov3", "Jordan Blake", "1984", 2, 1.00, "jordan.b@nexustech.edu")
     ))
 
     val systemStorageMetrics = MutableStateFlow<List<SystemStorageMetric>>(listOf(
@@ -194,7 +194,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             id = "s1-math",
             name = "S1 Mathematics",
             classLevel = AcademicClassLevel.S1,
-            teachers = listOf(TeacherProfile("t_lule", "Mr. Lule", "", "Mathematics", 14, 0, "m.lule@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_lule", "Mr. Lule", "", "Mathematics", 14, 0, "m.lule@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s1-math-n1", "Prime Numbers & Factors Notes", ResourceCategory.NOTES, "450 KB", "Prime numbers are positive integers greater than 1 that only have factors 1 and itself.", "math_notes_prime", "Mr. Lule"),
                 AcademicResource("s1-math-t1", "Introductory Algebra Textbook", ResourceCategory.TEXTBOOKS, "12.5 MB", "Comprehensive guide covering variables, equations, coefficients and graphs.", "math_textbook_s1", "Mr. Lule")
@@ -205,7 +205,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             id = "s1-ict",
             name = "S1 General ICT",
             classLevel = AcademicClassLevel.S1,
-            teachers = listOf(TeacherProfile("t_ss", "Mr. Ssewankambo", "", "ICT", 24, 1, "ss.ict@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_ss", "Mr. Ssewankambo", "", "ICT", 24, 1, "ss.ict@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s1-ict-n1", "Modern Computer Hardware Notes", ResourceCategory.NOTES, "850 KB", "Computer hardware consists of input, processing, storage memory and output channels.", "ict_hardware_notes", "Mr. Ssewankambo")
             ),
@@ -217,7 +217,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             id = "s3-bio",
             name = "S3 Biology",
             classLevel = AcademicClassLevel.S3,
-            teachers = listOf(TeacherProfile("t_ala", "Ms. Alanyo", "", "Biology", 32, 2, "g.alanyo@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_ala", "Ms. Alanyo", "", "Biology", 32, 2, "g.alanyo@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s3-bio-p1", "UNEB Past Paper 2022 Biology P1", ResourceCategory.PAST_PAPERS, "1.2 MB", "National final examinations covering aerobic cycles and photosynthesis charts.", "uneb_bio_2022_pdf", "Ms. Alanyo"),
                 AcademicResource("s3-bio-n1", "Cellular Respiration Teacher Handout", ResourceCategory.NOTES, "680 KB", "Active chemical conversion processes breaking down glucose for energy creation in human mitochondria.", "bio_notes_resp", "Ms. Alanyo"),
@@ -230,32 +230,32 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             id = "s3-math",
             name = "S3 Mathematics",
             classLevel = AcademicClassLevel.S3,
-            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s3-math-n1", "Quadratics & Parabolic Functions Slides", ResourceCategory.NOTES, "510 KB", "Finding solutions of degree 2 equations using factorization methodology and general formula.", "math_notes_quadratics", "Mr. Okello"),
-                AcademicResource("s3-math-p1", "Oakridge Term 1 Practice Paper", ResourceCategory.PAST_PAPERS, "920 KB", "Algebraic fractions, coordinate planes intersecting, matrix transformations exercises.", "midterm_math_s3", "Mr. Okello")
+                AcademicResource("s3-math-p1", "Nexus Tech Term 1 Practice Paper", ResourceCategory.PAST_PAPERS, "920 KB", "Algebraic fractions, coordinate planes intersecting, matrix transformations exercises.", "midterm_math_s3", "Mr. Okello")
             ),
             description = "Expanding standard algebra concepts, quadratic formulas, quadratic coordinates, and indices."
         ),
-
+ 
         // S4 Subjects
         Subject(
             id = "s4-math",
             name = "S4 Mathematics",
             classLevel = AcademicClassLevel.S4,
-            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_oke", "Mr. Okello", "", "Mathematics", 45, 1, "j.okello@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s4-math-p1", "UNEB Final Exam 2023 Paper 1", ResourceCategory.PAST_PAPERS, "1.6 MB", "Complete official government-grade questions on trigonometry and standard matrices.", "uneb_math_2023_pdf", "Mr. Okello")
             ),
             description = "Candidate level integrations, descriptive statistics, vectors, coordinates geometries and circles."
         ),
-
+ 
         // S6 Subjects
         Subject(
             id = "s6-econ",
             name = "S6 Economics (MEG/HEL)",
             classLevel = AcademicClassLevel.S6,
-            teachers = listOf(TeacherProfile("t_nam", "Ms. Namusoke", "", "Economics", 38, 3, "f.namusoke@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_nam", "Ms. Namusoke", "", "Economics", 38, 3, "f.namusoke@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s6-econ-n1", "Inflation & Business Cycles Notes", ResourceCategory.NOTES, "1.1 MB", "Macroeconomics trends detailing demand-pull versus cost-push inflationary pressure.", "econ_notes_inflation", "Ms. Namusoke"),
                 AcademicResource("s6-econ-p1", "UNEB S6 Pure Economics Paper 1", ResourceCategory.PAST_PAPERS, "2.4 MB", "High stakes essay items explaining central bank monetary policy controls.", "uneb_econ_s6_pdf", "Ms. Namusoke")
@@ -266,7 +266,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             id = "s6-sub-ict",
             name = "S6 Subsidiary ICT",
             classLevel = AcademicClassLevel.S6,
-            teachers = listOf(TeacherProfile("t_ss", "Mr. Ssewankambo", "", "ICT", 24, 1, "ss.ict@oakridge.edu")),
+            teachers = listOf(TeacherProfile("t_ss", "Mr. Ssewankambo", "", "ICT", 24, 1, "ss.ict@nexustech.edu")),
             resources = listOf(
                 AcademicResource("s6-ict-t1", "Subsidiary ICT Practice Handbook", ResourceCategory.TEXTBOOKS, "3.2 MB", "Advanced spreadsheet formulations, database modeling and systems integrity checklists.", "sub_ict_guide_s6", "Mr. Ssewankambo")
             ),

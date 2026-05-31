@@ -135,9 +135,6 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                     // High School Header Row
                     SchoolHeaderPanel(studentName, readingStreak)
 
-                    // High-fidelity active role changer controls
-                    RoleSelectorRow(viewModel)
-
                     // Dynamic view based on tab index
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         when (selectedTab) {
@@ -276,9 +273,6 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Log out and Exit")
                                 }
-                                
-                                Divider(modifier = Modifier.padding(vertical = 12.dp))
-                                RoleSelectorRow(viewModel)
                             }
                         }
                     }
@@ -291,7 +285,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                             title = { 
                                 Column {
                                     Text(
-                                        text = drawerItems.getOrNull(staffSelectedTabSafe)?.first ?: "Oakridge Hub",
+                                        text = drawerItems.getOrNull(staffSelectedTabSafe)?.first ?: "Nexus Tech Hub",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 18.sp
                                     )
@@ -1199,7 +1193,7 @@ fun BookDetailDialog(viewModel: LibraryViewModel) {
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No reviews yet. Be the first Oakridge student to write one!",
+                                    text = "No reviews yet. Be the first Nexus Tech student to write one!",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                     textAlign = TextAlign.Center
@@ -1377,7 +1371,7 @@ fun MyBooksTab(viewModel: LibraryViewModel) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = "Oakridge Study Goal",
+                            text = "Nexus Tech Study Goal",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -2013,7 +2007,7 @@ fun VirtualLibraryCard(studentName: String, studentId: String) {
             ) {
                 Column {
                     Text(
-                        text = "OAKRIDGE HIGH SCHOOL",
+                        text = "NEXUS TECH HIGH SCHOOL",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = AcademicGoldLight,
@@ -3548,7 +3542,7 @@ fun SaaSAdminControlCenterDialog(
                         
                         "Inventory" -> {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                Text("OAKRIDGE INVENTORY & COPIES CONTROL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("NEXUS TECH INVENTORY & COPIES CONTROL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("Manage catalog counts, monitor physical copies, and report/flag material damages.", fontSize = 11.sp, color = Color.Gray)
                                 
@@ -3865,7 +3859,7 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Explore Oakridge Curriculum",
+                        text = "Explore Nexus Tech Curriculum",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -4997,7 +4991,7 @@ fun AcademicUniversalReaderOverlay(viewModel: LibraryViewModel, resource: Academ
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("OAKRIDGE ACADEMIC SYLLABUS DIRECTIVE (RESTRICTED ACCESS)", fontSize = 7.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        Text("NEXUS TECH ACADEMIC SYLLABUS DIRECTIVE (RESTRICTED ACCESS)", fontSize = 7.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         Text("Topic Outline Reference Code: PE-${resource.id}", fontSize = 8.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         
                         // Body text with customizable zoom sizes
@@ -6388,7 +6382,7 @@ fun TeacherDashboardTab(viewModel: LibraryViewModel) {
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Oakridge Integrated Learning Environment (OILE)",
+                text = "Nexus Tech Integrated Learning Environment (NTILE)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -7729,7 +7723,7 @@ fun AdminActivityLogsTab(viewModel: LibraryViewModel) {
 fun AdminSystemConfigTab(viewModel: LibraryViewModel) {
     val context = LocalContext.current
     var modelToken by remember { mutableStateOf("gemini-1.5-pro-flash") }
-    var serverHost by remember { mutableStateOf("https://oakridge.edu/api/v1") }
+    var serverHost by remember { mutableStateOf("https://nexustech.edu/api/v1") }
     var multiFactorAuth by remember { mutableStateOf(true) }
     var storageCapLimit by remember { mutableStateOf("50 GB") }
 

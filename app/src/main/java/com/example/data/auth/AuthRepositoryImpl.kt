@@ -241,11 +241,11 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
         val editor = sharedPreferences.edit()
         val defaultMappings = mapOf(
             "S4A-023" to "wanchaaaron@gmail.com",
-            "S4B-101" to "alex.rivera@oakridge.edu",
-            "S4B-102" to "marcus.chen@oakridge.edu",
-            "S3A-015" to "sarah.j@oakridge.edu",
-            "S4B-104" to "taylor.vance@oakridge.edu",
-            "S4B-105" to "emily.r@oakridge.edu"
+            "S4B-101" to "alex.rivera@nexustech.edu",
+            "S4B-102" to "marcus.chen@nexustech.edu",
+            "S3A-015" to "sarah.j@nexustech.edu",
+            "S4B-104" to "taylor.vance@nexustech.edu",
+            "S4B-105" to "emily.r@nexustech.edu"
         )
         defaultMappings.forEach { (studentId, email) ->
             val idKeyForEmail = "email_to_id_$email"

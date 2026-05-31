@@ -352,15 +352,15 @@ private fun LoginView(
                                         password = "8585@@"
                                     }
                                     LoginTab.TEACHER -> {
-                                        email = "teacher@oakridge.edu"
+                                        email = "teacher@nexustech.edu"
                                         password = "8585@@"
                                     }
                                     LoginTab.LIBRARIAN -> {
-                                        email = "librarian@oakridge.edu"
+                                        email = "librarian@nexustech.edu"
                                         password = "8585@@"
                                     }
                                     LoginTab.ADMINISTRATOR -> {
-                                        email = "admin@oakridge.edu"
+                                        email = "admin@nexustech.edu"
                                         password = "8585@@"
                                     }
                                 }
@@ -441,9 +441,9 @@ private fun LoginView(
                     placeholder = { 
                         Text(
                             when (activeTab) {
-                                LoginTab.TEACHER -> "e.g. teacher@oakridge.edu"
-                                LoginTab.LIBRARIAN -> "e.g. librarian@oakridge.edu"
-                                else -> "e.g. admin@oakridge.edu"
+                                LoginTab.TEACHER -> "e.g. teacher@nexustech.edu"
+                                LoginTab.LIBRARIAN -> "e.g. librarian@nexustech.edu"
+                                else -> "e.g. admin@nexustech.edu"
                             }
                         ) 
                     },
@@ -644,7 +644,7 @@ private fun SignUpView(
     var fullName by remember { mutableStateOf("Aaron Wancha") }
     // Maintain separate inputs for student selection vs staff
     var studentId by remember { mutableStateOf("S4A-023") }
-    var email by remember { mutableStateOf("teacher@oakridge.edu") }
+    var email by remember { mutableStateOf("teacher@nexustech.edu") }
     
     var password by remember { mutableStateOf("8585@@") }
     var selectedRole by remember(initialRole) { mutableStateOf(initialRole) }
@@ -729,7 +729,7 @@ private fun SignUpView(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Staff Email Address") },
-                    placeholder = { Text("e.g. name@oakridge.edu") },
+                    placeholder = { Text("e.g. name@nexustech.edu") },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = "EmailIcon") },
                     keyboardOptions = KeyboardOptions(
