@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -188,9 +190,15 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                     "Reports" to Icons.Default.Assessment
                 )
                 else -> listOf( // ADMIN / SUPER_ADMIN
-                    "Dashboard" to Icons.Default.Dashboard,
-                    "Users" to Icons.Default.People,
-                    "Library Resource" to Icons.Default.Category,
+                    "Overview" to Icons.Default.Dashboard,
+                    "Students" to Icons.Default.People,
+                    "Teachers" to Icons.Default.School,
+                    "Librarians" to Icons.Default.LocalLibrary,
+                    "Classes" to Icons.Default.Domain,
+                    "Subjects" to Icons.Default.Book,
+                    "Resources" to Icons.Default.Category,
+                    "Assignments" to Icons.Default.Assignment,
+                    "AI Quiz Center" to Icons.Default.Psychology,
                     "Analytics" to Icons.Default.TrendingUp,
                     "Settings" to Icons.Default.Settings
                 )
@@ -333,7 +341,8 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                             role = currentRole,
                             selectedTab = staffSelectedTabSafe,
                             viewModel = viewModel,
-                            onLogout = onLogout
+                            onLogout = onLogout,
+                            onNavigateToTab = { staffSelectedTab = it }
                         )
                     }
                 }
@@ -1947,6 +1956,8 @@ fun StudentCardTab(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
             // High-fidelity Enterprise Sync, Conflict Resolution, Security, SQL Backup options
             EnterpriseSyncConsole(viewModel)
 
+            Spacer(modifier = Modifier.height(12.dp))
+            UgandanDivisionTargetsCalculator()
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
@@ -3859,6 +3870,7 @@ fun AcademicCurriculumWorkspace(viewModel: LibraryViewModel) {
     val curriculumActiveTab by viewModel.curriculumActiveTab.collectAsState()
 
     val currentRole by viewModel.currentRole.collectAsState()
+    val studentName by viewModel.studentName.collectAsState()
     val studentClassVal by viewModel.classLevel.collectAsState()
     val studentCombination by viewModel.combination.collectAsState()
 
@@ -4800,7 +4812,12 @@ fun AcademicSubjectFlashcardDeck(viewModel: LibraryViewModel) {
 @Composable
 fun AcademicForumDiscussionDeck(viewModel: LibraryViewModel, subjectId: String) {
     val discussions by viewModel.subjectDiscussionForum.collectAsState()
+    val spamReports by viewModel.forumSpamReports.collectAsState()
+    val verifiedReplies by viewModel.forumAdminVerifiedPosts.collectAsState()
+    val currentRole by viewModel.currentRole.collectAsState()
     var userMsgText by remember { mutableStateOf("") }
+    var userFileTitle by remember { mutableStateOf("") }
+    var showAttachmentSheet by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -4815,46 +4832,100 @@ fun AcademicForumDiscussionDeck(viewModel: LibraryViewModel, subjectId: String) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(6.dp).background(Color(0xFF10B981), CircleShape))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("4 Students active now", fontSize = 8.sp, color = Color.Gray)
+                    Text("${discussions.size} Forums active now", fontSize = 8.sp, color = Color.Gray)
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.heightIn(max = 140.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())) {
                 discussions.forEach { msg ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.White, RoundedCornerShape(8.dp))
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .background(Color(android.graphics.Color.parseColor(msg.avatarColorHex)), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(msg.userName.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                        }
+                    val isSpam = spamReports.contains(msg.id)
+                    val isVerified = verifiedReplies.contains(msg.id)
+                    var revealFlaggedSpam by remember { mutableStateOf(false) }
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                                Text(msg.userName, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                Text("${msg.minutesAgo}m ago", fontSize = 7.sp, color = Color.LightGray)
+                    if (isSpam && !revealFlaggedSpam) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .clickable { revealFlaggedSpam = true }
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("[Spam Alert / Moderation Trigger Check: This post is isolation flagged]", fontSize = 8.sp, color = MaterialTheme.colorScheme.error)
+                            Text("Click to Unhide", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (isVerified) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else Color.White, RoundedCornerShape(8.dp))
+                                .border(1.dp, if (isVerified) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, RoundedCornerShape(8.dp))
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color(android.graphics.Color.parseColor(msg.avatarColorHex)), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(msg.userName.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                             }
-                            Text(msg.messageText, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurface, lineHeight = 11.sp)
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(msg.userName, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        if (isVerified) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Surface(color = Color(0xFF10B981), shape = RoundedCornerShape(4.dp)) {
+                                                Text("Certified Outlines ✓", color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                            }
+                                        }
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("${msg.minutesAgo}m ago", fontSize = 7.sp, color = Color.LightGray)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        IconButton(
+                                            onClick = { viewModel.reportForumSpam(msg.id) },
+                                            modifier = Modifier.size(14.dp)
+                                        ) {
+                                            Icon(Icons.Default.Flag, contentDescription = "Report Spam", tint = Color.Red.copy(alpha = 0.6f), modifier = Modifier.size(10.dp))
+                                        }
+                                        if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            IconButton(
+                                                onClick = { viewModel.deleteForumPost(msg.id) },
+                                                modifier = Modifier.size(14.dp)
+                                            ) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Delete Post", tint = Color.Red, modifier = Modifier.size(10.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                                Text(msg.messageText, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurface, lineHeight = 11.sp)
+                            }
                         }
                     }
                 }
             }
 
-            // Quick reply input text field
+            // Quick reply input text field & Share Attachment Action
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(
+                    onClick = { showAttachmentSheet = true },
+                    modifier = Modifier.size(34.dp).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                ) {
+                    Icon(Icons.Default.AttachFile, contentDescription = "Attach File", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                }
+
                 OutlinedTextField(
                     value = userMsgText,
                     onValueChange = { userMsgText = it },
@@ -4875,6 +4946,37 @@ fun AcademicForumDiscussionDeck(viewModel: LibraryViewModel, subjectId: String) 
                     contentPadding = PaddingValues(horizontal = 10.dp)
                 ) {
                     Text("Post", fontSize = 9.sp)
+                }
+            }
+
+            if (showAttachmentSheet) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = userFileTitle,
+                        onValueChange = { userFileTitle = it },
+                        placeholder = { Text("Enter study PDF/Document name...", fontSize = 8.sp) },
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        singleLine = true,
+                        textStyle = TextStyle(fontSize = 8.sp)
+                    )
+                    TextButton(
+                        onClick = {
+                            if (userFileTitle.isNotBlank()) {
+                                viewModel.addForumAttachment(userFileTitle)
+                                userFileTitle = ""
+                                showAttachmentSheet = false
+                            }
+                        }
+                    ) {
+                        Text("Upload", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -6417,7 +6519,8 @@ fun StaffWorkspaceView(
     role: UserRole,
     selectedTab: Int,
     viewModel: LibraryViewModel,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToTab: (Int) -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -6449,12 +6552,18 @@ fun StaffWorkspaceView(
             }
             UserRole.ADMIN, UserRole.SUPER_ADMIN -> {
                 when (selectedTab) {
-                    0 -> AdminDashboardTab(viewModel)
-                    1 -> AdminUsersTab(viewModel)
-                    2 -> AdminResourceStatsTab(viewModel)
-                    3 -> AdminActivityLogsTab(viewModel)
-                    4 -> AdminSystemConfigTab(viewModel)
-                    else -> AdminDashboardTab(viewModel)
+                    0 -> AdminOverviewTab(viewModel = viewModel, onNavigateToTab = onNavigateToTab)
+                    1 -> AdminStudentsTab(viewModel = viewModel)
+                    2 -> AdminTeachersTab(viewModel = viewModel)
+                    3 -> AdminLibrariansTab(viewModel = viewModel)
+                    4 -> AdminClassesTab(viewModel = viewModel)
+                    5 -> AdminSubjectsTab(viewModel = viewModel)
+                    6 -> AdminResourcesTab(viewModel = viewModel)
+                    7 -> AdminAssignmentsTab(viewModel = viewModel)
+                    8 -> AdminAIQuizTab(viewModel = viewModel)
+                    9 -> AdminAnalyticsTab(viewModel = viewModel)
+                    10 -> AdminSettingsTab(viewModel = viewModel)
+                    else -> AdminOverviewTab(viewModel = viewModel, onNavigateToTab = onNavigateToTab)
                 }
             }
             else -> {
@@ -7537,6 +7646,95 @@ fun LibrarianReportsTab(viewModel: LibraryViewModel) {
                 }
             }
         }
+
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .testTag("librarian_csv_export_card"),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("Database CSV Exporter Hub", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Fast, production-grade raw spreadsheet extraction", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
+
+                    Divider()
+
+                    val allRecords by viewModel.allBorrowRecords.collectAsState()
+                    var compiledCSVText by remember { mutableStateOf("") }
+
+                    Text(
+                        text = "Extraction collects ${allRecords.size} live student transaction/borrow lines and formats them into standardized CSV files suitable for Excel, GSheets or UNEB portal tracking.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                compiledCSVText = viewModel.compileBorrowRecordsCSV(allRecords)
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp).testTag("extract_csv_btn"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Extract raw CSV", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        if (compiledCSVText.isNotBlank()) {
+                            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                            OutlinedButton(
+                                onClick = {
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(compiledCSVText))
+                                    Toast.makeText(context, "Spreadsheet database CSV copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f).height(40.dp).testTag("copy_csv_btn"),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Copy to clipboard", fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    if (compiledCSVText.isNotBlank()) {
+                        androidx.compose.foundation.text.selection.SelectionContainer {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 140.dp)
+                                    .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .padding(8.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    text = compiledCSVText,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF38BDF8),
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -7898,6 +8096,179 @@ fun AdminSystemConfigTab(viewModel: LibraryViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun UgandanDivisionTargetsCalculator() {
+    var englishScale by remember { mutableStateOf(1) } // 1 to 9 represent D1, D2, C3, C4, C5, C6, P7, P8, F9
+    var mathScale by remember { mutableStateOf(1) }
+    var bioScale by remember { mutableStateOf(1) }
+    var chemScale by remember { mutableStateOf(1) }
+    var physScale by remember { mutableStateOf(1) }
+    var histScale by remember { mutableStateOf(1) }
+    var geogScale by remember { mutableStateOf(1) }
+    var electiveScale by remember { mutableStateOf(1) }
+
+    fun labelForGrade(grade: Int): String = when (grade) {
+        1 -> "D1 (Distinction 1)"
+        2 -> "D2 (Distinction 2)"
+        3 -> "C3 (Credit 3)"
+        4 -> "C4 (Credit 4)"
+        5 -> "C5 (Credit 5)"
+        6 -> "C6 (Credit 6)"
+        7 -> "P7 (Pass 7)"
+        8 -> "P8 (Pass 8)"
+        else -> "F9 (Fail 9)"
+    }
+
+    // Best 8 subjects are aggregated
+    val totalAggregates = englishScale + mathScale + bioScale + chemScale + physScale + histScale + geogScale + electiveScale
+    
+    // UNEB Division Rules:
+    // Division 1: Aggregates 8 to 32 (Must pass Math and English)
+    // Division 2: Aggregates 33 to 45
+    // Division 3: Aggregates 46 to 58
+    // Division 4: Aggregates 59 to 72
+    // Division 9: Aggregates > 72
+    val meetsMathAndEng = englishScale <= 6 && mathScale <= 6
+    val division = when {
+        totalAggregates <= 32 && meetsMathAndEng -> "Division 1 (Distinction)"
+        totalAggregates <= 45 && englishScale <= 8 -> "Division 2 (Credit)"
+        totalAggregates <= 58 -> "Division 3 (Pass)"
+        totalAggregates <= 72 -> "Division 4 (Pass)"
+        else -> "Division 9 (Fail)"
+    }
+
+    val adviceStr = when (division) {
+        "Division 1 (Distinction)" -> "On track for top merit scholarships. Keep reviewing UNEB revision past papers!"
+        "Division 2 (Credit)" -> "Exemplary. Boost Math/English scores slightly to secure Division 1."
+        "Division 3 (Pass)" -> "Good base. Form study circles or ask our AI Librarian for revision outlines to bump to Credit."
+        else -> "Action Required: Set aside 1 hour daily on the Exam Simulator to cover foundational concepts."
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag("uneb_grading_card_calculator"),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Calculate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text("UNEB Aggregates & Target Division Calculator", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Model S4 UCE national registration performance targets", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+            // Subject Grids with compact rows
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    "English Lang" to { englishScale },
+                    "Mathematics" to { mathScale },
+                    "Biology" to { bioScale },
+                    "Chemistry" to { chemScale },
+                    "Physics" to { physScale },
+                    "History" to { histScale },
+                    "Geography" to { geogScale },
+                    "Elective Sub" to { electiveScale }
+                ).forEachIndexed { index, (subjectName, scaleGetter) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(subjectName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(100.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = {
+                                    val current = scaleGetter()
+                                    if (current > 1) {
+                                        when (index) {
+                                            0 -> englishScale--
+                                            1 -> mathScale--
+                                            2 -> bioScale--
+                                            3 -> chemScale--
+                                            4 -> physScale--
+                                            5 -> histScale--
+                                            6 -> geogScale--
+                                            7 -> electiveScale--
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("-", fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Text(
+                                labelForGrade(scaleGetter()),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(120.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            IconButton(
+                                onClick = {
+                                    val current = scaleGetter()
+                                    if (current < 9) {
+                                        when (index) {
+                                            0 -> englishScale++
+                                            1 -> mathScale++
+                                            2 -> bioScale++
+                                            3 -> chemScale++
+                                            4 -> physScale++
+                                            5 -> histScale++
+                                            6 -> geogScale++
+                                            7 -> electiveScale++
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("+", fontWeight = FontWeight.Black, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("UCE Aggregates Sum: $totalAggregates points", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Condition: ${if (meetsMathAndEng) "Passed Math/Eng" else "Math/Eng Warning"}", fontSize = 10.sp, color = if (meetsMathAndEng) Color.DarkGray else Color.Red)
+                }
+                Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(6.dp)) {
+                    Text(
+                        division,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
+            Text(
+                adviceStr,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.5.sp
+            )
         }
     }
 }

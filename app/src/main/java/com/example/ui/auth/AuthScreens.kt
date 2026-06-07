@@ -1,5 +1,6 @@
 package com.example.ui.auth
 
+import com.example.ui.ProductShowcaseScreen
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,7 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.auth.UserRole
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,6 +43,7 @@ fun AuthEntryScreen(
     viewModel: AuthViewModel,
     modifier: Modifier = Modifier
 ) {
+    var showShowcase by remember { mutableStateOf(false) }
     var isSigningUp by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf<LoginTab?>(null) }
     var showStaffPortals by remember { mutableStateOf(true) }
@@ -53,20 +55,23 @@ fun AuthEntryScreen(
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val backgroundColor = MaterialTheme.colorScheme.background
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        primaryColor.copy(alpha = 0.15f),
-                        backgroundColor,
-                        backgroundColor
+    if (showShowcase) {
+        ProductShowcaseScreen(onDismiss = { showShowcase = false })
+    } else {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.15f),
+                            backgroundColor,
+                            backgroundColor
+                        )
                     )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
+                ),
+            contentAlignment = Alignment.Center
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -85,23 +90,11 @@ fun AuthEntryScreen(
                     .clip(RoundedCornerShape(20.dp))
                     .padding(bottom = 8.dp)
                     .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val down = awaitFirstDown(requireUnconsumed = false)
-                                val completed = kotlinx.coroutines.withTimeoutOrNull(3000) {
-                                    var upEvent = false
-                                    while (!upEvent) {
-                                        val event = awaitPointerEvent()
-                                        if (event.changes.any { !it.pressed }) {
-                                            upEvent = true
-                                        }
-                                    }
-                                }
-                                if (completed == null) {
-                                    showStaffPortals = !showStaffPortals
-                                }
+                        detectTapGestures(
+                            onLongPress = {
+                                showStaffPortals = !showStaffPortals
                             }
-                        }
+                        )
                     }
             )
 
@@ -236,7 +229,8 @@ fun AuthEntryScreen(
                         if (currentCategory == null) {
                             CategorySelectionScreen(
                                 showStaffPortals = showStaffPortals,
-                                onCategorySelected = { selectedCategory = it }
+                                onCategorySelected = { selectedCategory = it },
+                                onExploreShowcase = { showShowcase = true }
                             )
                         } else {
                             if (isSigningUp) {
@@ -274,6 +268,7 @@ fun AuthEntryScreen(
             }
         }
     }
+}
 }
 
 enum class LoginTab {
@@ -746,6 +741,7 @@ private fun SignUpView(
 fun CategorySelectionScreen(
     showStaffPortals: Boolean,
     onCategorySelected: (LoginTab) -> Unit,
+    onExploreShowcase: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -775,8 +771,64 @@ fun CategorySelectionScreen(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 20.dp)
+                modifier = Modifier.padding(bottom = 12.dp)
             )
+
+            // High-fidelity Interactive App Showcase Banner
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExploreShowcase() }
+                    .padding(bottom = 16.dp)
+                    .testTag("explore_product_showcase_banner")
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Showcase",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Explore Nexus & UCE Simulator",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Interactive feature tour, grade matrices and mock apps.",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             
             val categories = listOf(
                 CategoryItem(

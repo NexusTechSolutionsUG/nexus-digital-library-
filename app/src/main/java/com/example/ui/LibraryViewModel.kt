@@ -31,7 +31,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     val currentRole = MutableStateFlow(UserRole.STUDENT)
 
     private fun deriveAcademicProfile(studentId: String): Triple<String, String, String?> {
-        val cleanId = studentId.toUpperCase().trim()
+        val cleanId = studentId.uppercase().trim()
         
         // Match standard format e.g. S4B-101, S5PEM-102
         val classPart = when {
@@ -84,8 +84,16 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         streamNameVal: String? = null,
         combinationVal: String? = null
     ) {
-        val fullName = listOfNotNull(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
-            .ifBlank { email?.substringBefore("@") } ?: "School User"
+        val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
+        val savedName = prefs.getString("saved_student_name", null)
+        val savedId = prefs.getString("saved_student_id", null)
+
+        val fullName = if (!savedName.isNullOrBlank()) {
+            savedName
+        } else {
+            listOfNotNull(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
+                .ifBlank { email?.substringBefore("@") } ?: "School User"
+        }
         studentName.value = fullName
         
         val mappedRole = when (roleStr?.uppercase()) {
@@ -99,14 +107,22 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         currentRole.value = mappedRole
 
         var finalId = "StudentID-2026-HSL"
-        if (mappedRole == UserRole.STUDENT && email != null) {
-            val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
-            val lookedUpId = prefs.getString("email_to_id_$email", null) ?: email.substringBefore("@").uppercase()
-            studentId.value = lookedUpId
-            finalId = lookedUpId
+        if (!savedId.isNullOrBlank()) {
+            studentId.value = savedId
+            finalId = savedId
         } else {
-            studentId.value = email ?: "StudentID-2026-HSL"
-            finalId = email ?: "StudentID-2026-HSL"
+            if (mappedRole == UserRole.STUDENT && email != null) {
+                val lookedUpId = prefs.getString("email_to_id_$email", null) ?: email.substringBefore("@").uppercase()
+                studentId.value = lookedUpId
+                finalId = lookedUpId
+            } else {
+                studentId.value = email ?: "StudentID-2026-HSL"
+                finalId = email ?: "StudentID-2026-HSL"
+            }
+        }
+
+        if (mappedRole == UserRole.STUDENT) {
+            loadUNEBHistoryFromPrefs()
         }
 
         // Initialize academic profile attributes for students
@@ -221,23 +237,65 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     // Active screen state context (e.g. for showing book details)
     val selectedBookId = MutableStateFlow<String?>(null)
 
-    // Books stream - dynamically combined with search, category, sort order, and copy availability
-    val books: StateFlow<List<Book>> = combine(
-        repository.allBooks,
+    // Decoupled query parameters container for flawless compile-time type safety
+    data class QueryParams(
+        val query: String,
+        val category: String,
+        val sortOrder: String,
+        val filterAvail: Boolean
+    )
+
+    // Decoupled profiles parameters container
+    data class ProfileParams(
+        val role: UserRole,
+        val classLevel: String,
+        val combination: String?
+    )
+
+    // Decoupled integrated search filters container
+    data class SearchFilters(
+        val q: QueryParams,
+        val p: ProfileParams
+    )
+
+    // Intermediate query params flow
+    val queryParamsFlow: Flow<QueryParams> = combine(
         searchQuery,
         selectedCategory,
         searchSortOrder,
-        searchFilterAvailability,
+        searchFilterAvailability
+    ) { query, category, sort, availOnly ->
+        QueryParams(query, category, sort, availOnly)
+    }
+
+    // Intermediate profile params flow
+    val profileParamsFlow: Flow<ProfileParams> = combine(
         currentRole,
         classLevel,
         combination
-    ) { allBooks, query, category, sort, availOnly, role, level, comb ->
+    ) { role, level, comb ->
+        ProfileParams(role, level, comb)
+    }
+
+    // Integrated search filters flow
+    val searchFiltersFlow: Flow<SearchFilters> = combine(
+        queryParamsFlow,
+        profileParamsFlow
+    ) { q, p ->
+        SearchFilters(q, p)
+    }
+
+    // Books stream - dynamically combined with search, category, sort order, and copy availability
+    val books: StateFlow<List<Book>> = repository.allBooks.combine(searchFiltersFlow) { allBooks, filters ->
+        val q = filters.q
+        val p = filters.p
+
         allBooks.filter { book ->
             // Academic level and combination-specific filtering for students
-            if (role == UserRole.STUDENT) {
-                val isOLevel = level in listOf("S1", "S2", "S3", "S4")
+            if (p.role == UserRole.STUDENT) {
+                val isOLevel = p.classLevel in listOf("S1", "S2", "S3", "S4")
                 if (isOLevel) {
-                    when (level) {
+                    when (p.classLevel) {
                         "S1", "S2" -> {
                             // Hide advanced physics and cosmology for junior students
                             book.id != "sci-001" 
@@ -246,7 +304,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                     }
                 } else {
                     // A-Level (S5-S6): Filter strictly by combination!
-                    when (comb) {
+                    when (p.combination) {
                         "PEM" -> {
                             // Physics, Economics, Math
                             // Show Science & Tech, Self-Growth, Sapiens
@@ -269,15 +327,15 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 true
             }
         }.filter { book ->
-            val matchesCategory = category == "All" || book.category == category
-            val matchesSearch = query.isBlank() || 
-                    book.title.contains(query, ignoreCase = true) ||
-                    book.author.contains(query, ignoreCase = true) ||
-                    book.description.contains(query, ignoreCase = true)
-            val matchesAvail = !availOnly || book.availableCopies > 0
+            val matchesCategory = q.category == "All" || book.category == q.category
+            val matchesSearch = q.query.isBlank() || 
+                    book.title.contains(q.query, ignoreCase = true) ||
+                    book.author.contains(q.query, ignoreCase = true) ||
+                    book.description.contains(q.query, ignoreCase = true)
+            val matchesAvail = !q.filterAvail || book.availableCopies > 0
             matchesCategory && matchesSearch && matchesAvail
         }.sortedWith { b1, b2 ->
-            when (sort) {
+            when (q.sortOrder) {
                 "Rating" -> b2.rating.compareTo(b1.rating)
                 "Year" -> b2.publishedYear.compareTo(b1.publishedYear)
                 else -> b1.title.compareTo(b2.title, ignoreCase = true)
@@ -843,6 +901,74 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun updateStudentProfile(name: String, id: String) {
         if (name.isNotBlank()) studentName.value = name
         if (id.isNotBlank()) studentId.value = id
+        
+        val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("saved_student_name", name)
+            .putString("saved_student_id", id)
+            .apply()
+        
+        addNotification("Profile Synchronized", "Successfully updated your electronic student registration card details.", "goal")
+    }
+
+    fun deleteForumPost(postId: String) {
+        subjectDiscussionForum.value = subjectDiscussionForum.value.filter { it.id != postId }
+        addNotification("Content Moderated", "Discussion post was permanently removed from curriculum forums.", "due_date")
+    }
+
+    fun addForumAttachment(fileName: String) {
+        if (fileName.isNotBlank()) {
+            forumUploadedPDFs.value = forumUploadedPDFs.value + fileName
+            addNotification("Resource Shared", "Uploaded study notes file: $fileName directly to classmates.", "announcement")
+        }
+    }
+
+    fun compileBorrowRecordsCSV(records: List<BorrowRecord>): String {
+        val sBuilder = StringBuilder()
+        sBuilder.append("Record_ID,Book_ID,Book_Title,Author,Borrow_Date,Due_Date,Return_Date,Progress_Percent\n")
+        val formatter = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+        records.forEach { r ->
+            val bDate = formatter.format(java.util.Date(r.borrowDate))
+            val dDate = formatter.format(java.util.Date(r.dueDate))
+            val rDate = if (r.returnDate != null) formatter.format(java.util.Date(r.returnDate)) else "OUTSTANDING"
+            val titleEsc = r.bookTitle.replace(",", " ").replace("\n", " ")
+            val authorEsc = r.author.replace(",", " ").replace("\n", " ")
+            sBuilder.append("${r.id},${r.bookId},$titleEsc,$authorEsc,$bDate,$dDate,$rDate,${r.readingProgress}%\n")
+        }
+        return sBuilder.toString()
+    }
+
+    fun saveUNEBHistoryToPrefs(historyList: List<UNEBExamHistoryItem>) {
+        val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
+        val serialized = historyList.joinToString("\n") { item ->
+            "${item.id}##${item.subName}##${item.examYear}##${item.classLevel}##${item.score}##${item.scorePct}##${item.divisionLabel}##${item.timestamp}"
+        }
+        prefs.edit().putString("saved_uneb_history", serialized).apply()
+    }
+
+    fun loadUNEBHistoryFromPrefs() {
+        val prefs = getApplication<Application>().getSharedPreferences("nexus_auth_prefs", android.content.Context.MODE_PRIVATE)
+        val serialized = prefs.getString("saved_uneb_history", null) ?: return
+        try {
+            val list = serialized.split("\n").filter { it.isNotBlank() }.map { line ->
+                val tokens = line.split("##")
+                UNEBExamHistoryItem(
+                    id = tokens[0],
+                    subName = tokens[1],
+                    examYear = tokens[2],
+                    classLevel = tokens[3],
+                    score = tokens[4],
+                    scorePct = tokens[5].toInt(),
+                    divisionLabel = tokens[6],
+                    timestamp = tokens[7].toLong()
+                )
+            }
+            if (list.isNotEmpty()) {
+                unebSubmittedHistory.value = list
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LibraryViewModel", "Error restoring cached UNEB history logs", e)
+        }
     }
 
     // --- NEW VIEWER FLOWS & ACTIONS ---
@@ -1444,6 +1570,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             timestamp = System.currentTimeMillis()
         )
         unebSubmittedHistory.value = listOf(newHistoryItem) + unebSubmittedHistory.value
+        saveUNEBHistoryToPrefs(unebSubmittedHistory.value)
         currentXpPoints.value += score * 10
         addNotification("Mock Exam Evaluated", "Scored $score/$maxScorePossible ($div) on past paper simulation.", "goal")
         checkLevelProgression()
@@ -1577,6 +1704,342 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // =========================================================================
+    // HIGH COMPLIANCE EXTENSIVE ADMINISTRATOR SYSTEM STATE & OPERATIONS
+    // =========================================================================
+
+    // 1. Dynamic lists for Admin Dashboard
+    val adminSchools = MutableStateFlow<List<String>>(listOf("Nexus Tech Academies", "Kampala Model High School", "Mukono Comprehensive School"))
+    val adminClasses = MutableStateFlow<List<String>>(listOf("S1", "S2", "S3", "S4", "S5", "S6"))
+    val adminStreams = MutableStateFlow<List<String>>(listOf("A", "B", "C", "D"))
+    val adminCombinations = MutableStateFlow<List<String>>(listOf("PCM", "PCB", "PEM", "MEG", "HEG", "LEG"))
+    
+    val adminLibrarians = MutableStateFlow<List<UserModerationProfile>>(listOf(
+        UserModerationProfile("lib_1", "Damian Ssekyanzi", "Librarian Desk", "Active", 0, "d.ssekyanzi@nexustech.edu"),
+        UserModerationProfile("lib_2", "Brenda Nalubega", "Category Supervisor", "Active", 0, "b.nalu@nexustech.edu")
+    ))
+
+    val adminRecentActivities = MutableStateFlow<List<String>>(listOf(
+        "Student S4A-001 logged in",
+        "Teacher uploaded Biology notes",
+        "New assignment created",
+        "New student added"
+    ))
+
+    // 2. School Branding & System Settings config
+    val schoolName = MutableStateFlow("Nexus Digital Library")
+    val schoolMotto = MutableStateFlow("Knowledge is Freedom")
+    val schoolSlogan = MutableStateFlow("Empowering Tomorrow's Thinkers")
+    val themeColor = MutableStateFlow("Indigo") // "Indigo", "Teal", "Blue", "Black"
+
+    val sessionTimeout = MutableStateFlow(30)
+    val passwordPolicy = MutableStateFlow("Medium (Alphanumeric)")
+    val maintenanceMode = MutableStateFlow(false)
+
+    // 3. AI generated quiz state
+    val isQuizGenerating = MutableStateFlow(false)
+    val quizGenerationProgress = MutableStateFlow<String?>(null)
+    val adminGeneratedQuiz = MutableStateFlow<AdminQuiz?>(null)
+    
+    val adminApprovedQuizzes = MutableStateFlow<List<AdminQuiz>>(listOf(
+        AdminQuiz(
+            id = "q_pre_1",
+            subject = "S1 Mathematics",
+            classLevel = "S1",
+            difficulty = "Easy",
+            questionCount = 2,
+            questions = listOf(
+                QuizQuestion("q1", "What is the smallest prime number?", listOf("1", "2", "3", "5"), 1),
+                QuizQuestion("q2", "State the factors of 15.", listOf("1, 3, 5, 15", "1, 5, 15", "3, 5", "1, 15"), 0)
+            ),
+            isPublished = true
+        )
+    ))
+
+    // 4. Admin Management Functions
+    fun addSchool(name: String) {
+        if (name.isNotBlank() && !adminSchools.value.contains(name)) {
+            adminSchools.value = adminSchools.value + name
+            adminRecentActivities.value = listOf("Added new School: $name") + adminRecentActivities.value
+            addNotification("School Added", "School '$name' is now registered in the multi-school directory.", "announcement")
+        }
+    }
+
+    fun addClassLevel(name: String) {
+        if (name.isNotBlank() && !adminClasses.value.contains(name)) {
+            adminClasses.value = adminClasses.value + name
+            adminRecentActivities.value = listOf("Configured Class level: $name") + adminRecentActivities.value
+        }
+    }
+
+    fun addStream(name: String) {
+        if (name.isNotBlank() && !adminStreams.value.contains(name)) {
+            adminStreams.value = adminStreams.value + name
+            adminRecentActivities.value = listOf("Created Class Stream: $name") + adminRecentActivities.value
+        }
+    }
+
+    fun addCombination(name: String) {
+        val uppercaseName = name.uppercase().trim()
+        if (uppercaseName.isNotBlank() && !adminCombinations.value.contains(uppercaseName)) {
+            adminCombinations.value = adminCombinations.value + uppercaseName
+            adminRecentActivities.value = listOf("Created A-Level combination: $uppercaseName") + adminRecentActivities.value
+            addNotification("Combination Created", "New advanced combination $uppercaseName registered.", "announcement")
+        }
+    }
+
+    fun createStudent(id: String, firstName: String, lastName: String, classLvl: String, stream: String, statusStr: String) {
+        val fullName = "$firstName $lastName"
+        val email = "${firstName.lowercase()}.${lastName.lowercase()}@nexustech.edu"
+        val newProfile = UserModerationProfile(
+            id = id,
+            name = fullName,
+            grade = "$classLvl$stream",
+            status = statusStr,
+            flaggedCount = 0,
+            email = email
+        )
+        userModerationProfiles.value = userModerationProfiles.value + newProfile
+        adminRecentActivities.value = listOf("Registered Student account: $id - $fullName") + adminRecentActivities.value
+        addNotification("Account Activated", "Student profile for $fullName configured successfully.", "announcement")
+    }
+
+    fun deleteStudent(id: String) {
+        userModerationProfiles.value = userModerationProfiles.value.filter { it.id != id }
+        adminRecentActivities.value = listOf("Deleted Student account: $id") + adminRecentActivities.value
+    }
+
+    fun createTeacher(name: String, email: String, subjectName: String, role: String) {
+        val newTeacher = TeacherProfile(
+            id = "t_" + System.currentTimeMillis(),
+            name = name,
+            imageUrl = "",
+            subjectName = subjectName,
+            uploadedCount = 0,
+            activePollsCount = 0,
+            email = email
+        )
+        val updated = allAcademicSubjects.value.map { subject ->
+            if (subject.name.contains(subjectName, ignoreCase = true) || subject.id.contains(subjectName, ignoreCase = true)) {
+                subject.copy(teachers = subject.teachers + newTeacher)
+            } else {
+                subject
+            }
+        }
+        allAcademicSubjects.value = updated
+        adminRecentActivities.value = listOf("Created Teacher account: $name ($role)") + adminRecentActivities.value
+        addNotification("Teacher Registered", "Teacher $name assigned to $subjectName under $role role.", "announcement")
+    }
+
+    fun createLibrarian(name: String, email: String, status: String) {
+        val newLib = UserModerationProfile(
+            id = "lib_" + System.currentTimeMillis(),
+            name = name,
+            grade = "Librarian Desk",
+            status = status,
+            flaggedCount = 0,
+            email = email
+        )
+        adminLibrarians.value = adminLibrarians.value + newLib
+        adminRecentActivities.value = listOf("Regulated Librarian assignment: $name") + adminRecentActivities.value
+        addNotification("Librarian Authorized", "Administrative credentials granted to Librarian: $name", "announcement")
+    }
+
+    fun deleteLibrarian(id: String) {
+        adminLibrarians.value = adminLibrarians.value.filter { it.id != id }
+    }
+
+    fun createSubject(name: String, classLevelStr: String, description: String) {
+        val level = when (classLevelStr) {
+            "S1" -> AcademicClassLevel.S1
+            "S2" -> AcademicClassLevel.S2
+            "S3" -> AcademicClassLevel.S3
+            "S4" -> AcademicClassLevel.S4
+            "S5" -> AcademicClassLevel.S5
+            "S6" -> AcademicClassLevel.S6
+            else -> AcademicClassLevel.S1
+        }
+        val newSubj = Subject(
+            id = "subj_" + System.currentTimeMillis(),
+            name = name,
+            classLevel = level,
+            teachers = emptyList(),
+            resources = emptyList(),
+            description = description
+        )
+        allAcademicSubjects.value = allAcademicSubjects.value + newSubj
+        adminRecentActivities.value = listOf("Pushed Subject Syllabus node: $name") + adminRecentActivities.value
+        addNotification("Subject Created", "New academic course $name configured for $classLevelStr.", "announcement")
+    }
+
+    fun uploadAcademicResource(title: String, subjectId: String, resCategory: String, combination: String?, size: String = "2.1 MB") {
+        val cat = when (resCategory.uppercase()) {
+            "NOTES" -> ResourceCategory.NOTES
+            "PDF" -> ResourceCategory.PDFS
+            "TEXTBOOK" -> ResourceCategory.TEXTBOOKS
+            "VIDEOS" -> ResourceCategory.VIDEOS
+            "ASSIGNMENT" -> ResourceCategory.ASSIGNMENTS
+            "PAST_PAPER" -> ResourceCategory.PAST_PAPERS
+            "MARKING_GUIDE" -> ResourceCategory.MARKING_GUIDES
+            "REVISION" -> ResourceCategory.REVISION_QUESTIONS
+            "AUDIO" -> ResourceCategory.AUDIO_LESSONS
+            else -> ResourceCategory.NOTES
+        }
+        val newRes = AcademicResource(
+            id = "res_" + System.currentTimeMillis(),
+            title = title,
+            category = cat,
+            sizeLabel = size,
+            contentSnippet = "Newly added administrative syllabus resource for $combination.",
+            virtualUrl = "uploaded_resource_doc",
+            authorTeacher = "Administrator"
+        )
+        val updated = allAcademicSubjects.value.map { subject ->
+            if (subject.id == subjectId || subject.name.contains(subjectId, ignoreCase = true)) {
+                subject.copy(resources = subject.resources + newRes)
+            } else {
+                subject
+            }
+        }
+        allAcademicSubjects.value = updated
+        adminRecentActivities.value = listOf("Uploaded syllabus companion material: $title") + adminRecentActivities.value
+        addNotification("New Syllabus Material", "Academic resource '$title' published to $subjectId.", "goal")
+    }
+
+    fun generateAIQuiz(subjectName: String, classLevel: String, difficulty: String, count: Int) {
+        viewModelScope.launch {
+            isQuizGenerating.value = true
+            quizGenerationProgress.value = "Calibrating hyper-parameters for $subjectName..."
+            delay(1000)
+            quizGenerationProgress.value = "Initializing connection to Gemini Brain API..."
+            
+            val systemPrompt = "You are a professional Ugandan curriculum developer and examination compiler. Generate an educational academic quiz for high school students. Output ONLY valid raw JSON without markdown formatting or code blocks. The JSON must match this structure: { \"questions\": [ { \"questionText\": \"Question content?\", \"options\": [\"Option A\", \"Option B\", \"Option C\", \"Option D\"], \"correctIndex\": 0 } ] }"
+            val userPrompt = "Generate $count $difficulty multiple choice questions about $subjectName for $classLevel class."
+            
+            try {
+                val apiKey = try { com.example.BuildConfig.GEMINI_API_KEY } catch(e: Exception) { "" }
+                if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+                    quizGenerationProgress.value = "Emulating local Gemini service response..."
+                    delay(1200)
+                    val simulatedQuestions = buildSimulatedQuestions(subjectName, count)
+                    adminGeneratedQuiz.value = AdminQuiz(
+                        id = "q_" + System.currentTimeMillis(),
+                        subject = subjectName,
+                        classLevel = classLevel,
+                        difficulty = difficulty,
+                        questionCount = count,
+                        questions = simulatedQuestions,
+                        isPublished = false
+                    )
+                    quizGenerationProgress.value = "Quiz successfully generated in local preview!"
+                } else {
+                    quizGenerationProgress.value = "Generating raw questions using gemini-3.5-flash..."
+                    val history = listOf(ChatMessage("q_sys", "user", userPrompt))
+                    val response = GeminiApiService.generateContent(history, systemPrompt)
+                    
+                    val parsedQuestions = mutableListOf<QuizQuestion>()
+                    try {
+                        val cleanedResponse = response.replace("```json", "").replace("```", "").trim()
+                        val jsonObj = org.json.JSONObject(cleanedResponse)
+                        val questionsArr = jsonObj.getJSONArray("questions")
+                        for (i in 0 until questionsArr.length()) {
+                            val q = questionsArr.getJSONObject(i)
+                            val optionsArr = q.getJSONArray("options")
+                            val options = mutableListOf<String>()
+                            for (j in 0 until optionsArr.length()) {
+                                options.add(optionsArr.getString(j))
+                            }
+                            parsedQuestions.add(QuizQuestion(
+                                id = "q_ai_${i}_" + System.currentTimeMillis(),
+                                questionText = q.getString("questionText"),
+                                options = options,
+                                correctIndex = q.getInt("correctIndex")
+                            ))
+                        }
+                    } catch (pe: Exception) {
+                        android.util.Log.e("LibraryViewModel", "Parsing Gemini Quiz Failed, falling back to simulated output", pe)
+                        parsedQuestions.addAll(buildSimulatedQuestions(subjectName, count))
+                    }
+                    
+                    adminGeneratedQuiz.value = AdminQuiz(
+                        id = "q_" + System.currentTimeMillis(),
+                        subject = subjectName,
+                        classLevel = classLevel,
+                        difficulty = difficulty,
+                        questionCount = count,
+                        questions = parsedQuestions,
+                        isPublished = false
+                    )
+                    quizGenerationProgress.value = "AI generation complete!"
+                }
+            } catch (e: Exception) {
+                val simQs = buildSimulatedQuestions(subjectName, count)
+                adminGeneratedQuiz.value = AdminQuiz(
+                    id = "q_" + System.currentTimeMillis(),
+                    subject = subjectName,
+                    classLevel = classLevel,
+                    difficulty = difficulty,
+                    questionCount = count,
+                    questions = simQs,
+                    isPublished = false
+                )
+                quizGenerationProgress.value = "Fall-back mock quiz compiled successfully!"
+            } finally {
+                delay(800)
+                isQuizGenerating.value = false
+                quizGenerationProgress.value = null
+            }
+        }
+    }
+    
+    private fun buildSimulatedQuestions(subjectName: String, count: Int): List<QuizQuestion> {
+        val list = mutableListOf<QuizQuestion>()
+        val subjLower = subjectName.lowercase()
+        
+        if (subjLower.contains("math")) {
+            list.add(QuizQuestion("mq_1", "What is the key formula of a circle's area?", listOf("2 * PI * r", "PI * r^2", "PI * d", "2 * PI * d"), 1))
+            if (count > 1) {
+                list.add(QuizQuestion("mq_2", "Solve for x: 3x - 7 = 8.", listOf("x = 3", "x = 4", "x = 5", "x = 6"), 2))
+            }
+            if (count > 2) {
+                list.add(QuizQuestion("mq_3", "In a right triangle, if sides are 3 and 4, what is the hypotenuse?", listOf("5", "6", "7", "8"), 0))
+            }
+        } else if (subjLower.contains("physics") || subjLower.contains("pcm") || subjLower.contains("pem")) {
+            list.add(QuizQuestion("pq_1", "What is Newton's second law equation?", listOf("F = m/a", "F = m*a", "F = m*v", "F = m*a^2"), 1))
+            if (count > 1) {
+                list.add(QuizQuestion("pq_2", "Which optical surface scatters light outward in all directions?", listOf("Concave Mirror", "Convex Mirror", "Converging Lens", "Flat Plate"), 1))
+            }
+            if (count > 2) {
+                list.add(QuizQuestion("pq_3", "State the standard physics unit of sound wave frequency.", listOf("Decibels", "Pascal", "Hertz", "Watts"), 2))
+            }
+        } else if (subjLower.contains("bio") || subjLower.contains("pcb")) {
+            list.add(QuizQuestion("bq_1", "What active organelle is considered the power station of the cell?", listOf("Nucleus", "Ribosome", "Mitochondria", "Lysosome"), 2))
+            if (count > 1) {
+                list.add(QuizQuestion("bq_2", "DNA is condensed into which active structures inside the nucleus?", listOf("Chromosomes", "Proteins", "Vacuoles", "Ribosomes"), 0))
+            }
+            if (count > 2) {
+                list.add(QuizQuestion("bq_3", "Which green pigment directly facilitates light plant photosynthesis?", listOf("Hemoglobin", "Chlorophyll", "Carotene", "Anthocyanin"), 1))
+            }
+        } else {
+            list.add(QuizQuestion("gq_1", "Which continent is the nation of Uganda located in?", listOf("Asia", "Europe", "Africa", "South America"), 2))
+            if (count > 1) {
+                list.add(QuizQuestion("gq_2", "What is the standard boiling temperature of pure water?", listOf("90 C", "100 C", "110 C", "120 C"), 1))
+            }
+            if (count > 2) {
+                list.add(QuizQuestion("gq_3", "Identify the primary natural source of warm solar radiation.", listOf("The Moon", "The Earth", "The Sun", "Wind currents"), 2))
+            }
+        }
+        return list.take(count)
+    }
+    
+    fun publishAIQuiz(quiz: AdminQuiz) {
+        val published = quiz.copy(isPublished = true)
+        adminApprovedQuizzes.value = adminApprovedQuizzes.value + published
+        adminGeneratedQuiz.value = null
+        adminRecentActivities.value = listOf("Approved AI Quiz for: ${quiz.subject}") + adminRecentActivities.value
+        addNotification("AI Quiz Published", "New evaluated Quiz of '${quiz.subject}' pushed to class students.", "announcement")
+    }
+
     override fun onCleared() {
         super.onCleared()
         try {
@@ -1610,4 +2073,22 @@ data class UNEBExamHistoryItem(
     val divisionLabel: String,
     val timestamp: Long
 ) : java.io.Serializable
+
+data class QuizQuestion(
+    val id: String,
+    val questionText: String,
+    val options: List<String>,
+    val correctIndex: Int
+) : java.io.Serializable
+
+data class AdminQuiz(
+    val id: String,
+    val subject: String,
+    val classLevel: String,
+    val difficulty: String,
+    val questionCount: Int,
+    val questions: List<QuizQuestion>,
+    var isPublished: Boolean = false
+) : java.io.Serializable
+
 
