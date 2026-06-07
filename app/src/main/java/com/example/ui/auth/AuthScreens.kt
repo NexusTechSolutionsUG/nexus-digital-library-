@@ -297,7 +297,7 @@ private fun LoginView(
             }
         )
     }
-    var password by remember { mutableStateOf("8585@@") }
+    var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     
     // Password recovery dialog state
@@ -381,19 +381,15 @@ private fun LoginView(
                                 when (tab) {
                                     LoginTab.STUDENT -> {
                                         studentId = "S4A-023"
-                                        password = "8585@@"
                                     }
                                     LoginTab.TEACHER -> {
                                         email = "teacher@nexustech.edu"
-                                        password = "8585@@"
                                     }
                                     LoginTab.LIBRARIAN -> {
                                         email = "librarian@nexustech.edu"
-                                        password = "8585@@"
                                     }
                                     LoginTab.ADMINISTRATOR -> {
                                         email = "admin@nexustech.edu"
-                                        password = "8585@@"
                                     }
                                 }
                             }

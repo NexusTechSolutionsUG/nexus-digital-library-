@@ -36,12 +36,19 @@ object GeminiApiService {
             ""
         }
 
-        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            Log.w(TAG, "Gemini API key is standard placeholder status. Simulating AI Assistant.")
-            return@withContext simulateOfflineResponse(history)
+        val isPlaceholder = apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY"
+
+        if (isPlaceholder) {
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "Gemini API key is standard placeholder status. Simulating AI Assistant.")
+                return@withContext simulateOfflineResponse(history)
+            } else {
+                Log.e(TAG, "Gemini API configuration is missing in release mode.")
+                return@withContext "Error: AI services are not available in production without a valid configuration. Please configure GEMINI_API_KEY in secrets."
+            }
         }
 
-        val url = "$BASE_URL/$MODEL_NAME:generateContent?key=$apiKey"
+        val url = "$BASE_URL/$MODEL_NAME:generateContent"
         val mediaType = "application/json; charset=utf-8".toMediaType()
 
         try {
@@ -80,16 +87,21 @@ object GeminiApiService {
             root.put("contents", contentsArray)
 
             val jsonString = root.toString()
-            Log.d(TAG, "Request payload: $jsonString")
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Gemini Request initiated. Message count: ${history.size}")
+            }
 
             val request = Request.Builder()
                 .url(url)
+                .header("x-goog-api-key", apiKey)
                 .post(jsonString.toRequestBody(mediaType))
                 .build()
 
             client.newCall(request).execute().use { response ->
                 val bodyString = response.body?.string()
-                Log.d(TAG, "Response code: ${response.code}, body: $bodyString")
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Gemini Response context received. Code: ${response.code}")
+                }
 
                 if (response.isSuccessful && bodyString != null) {
                     val respJson = JSONObject(bodyString)
@@ -109,8 +121,10 @@ object GeminiApiService {
                 return@withContext "Error: Failed to fetch valid response from AI services (Code ${response.code})."
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error generating content", e)
-            return@withContext "Network Error: ${e.message}. Preserving offline mode..."
+            if (BuildConfig.DEBUG) {
+                Log.e(TAG, "Error generating content: ${e.message}")
+            }
+            return@withContext "Network Error: Failed to generate response safely."
         }
     }
 

@@ -172,13 +172,34 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _authState.value = AuthState.Error("Password must be at least 6 characters.")
             return
         }
-        if (staffAccessCode.trim() != "NEXUSTECH2026") {
-            _authState.value = AuthState.Error("Security Code Invalid: Please enter the active organization-approved Staff Registration Security Code to authorize your staff profile role.")
-            return
+
+        val isDemoEnabled = try {
+            com.example.BuildConfig.DEBUG && (com.example.BuildConfig.DEMO_AUTH_ENABLED.toBoolean() || com.example.BuildConfig.DEMO_AUTH_ENABLED == "true")
+        } catch (e: Throwable) {
+            false
         }
+
+        if (isDemoEnabled) {
+            if (staffAccessCode.trim() != "NEXUSTECH2026") {
+                _authState.value = AuthState.Error("Security Code Invalid: Please enter the active organization-approved Staff Registration Security Code to authorize your staff profile role.")
+                return
+            }
+        } else {
+            // Under production mode, client-side code is NOT the security boundary.
+            // Client-side staffAccessCode is ignored for privileges to prevent hardcoded bypass.
+            // Production staff role assignment must happen server-side through Supabase RLS/admin invite flow/backend function.
+        }
+
+        // Staff registration defaults to a non-staff role (STUDENT) in production unless confirmed by the backend
+        val resolvedRole = if (isDemoEnabled) {
+            role
+        } else {
+            UserRole.STUDENT
+        }
+
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.signUp(fullName, cleanEmail, password, role)
+            authRepository.signUp(fullName, cleanEmail, password, resolvedRole)
                 .onSuccess { session ->
                     if (session.accessToken.isNullOrEmpty()) {
                         _authState.value = AuthState.SuccessMessage(

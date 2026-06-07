@@ -17,7 +17,7 @@ import androidx.room.RoomDatabase
         BookAnnotation::class
     ],
     version = 2,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class LibraryDatabase : RoomDatabase() {
     abstract val libraryDao: LibraryDao
@@ -28,13 +28,28 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): LibraryDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                val isDemoEnabled = try {
+                    com.example.BuildConfig.DEBUG && (com.example.BuildConfig.DEMO_AUTH_ENABLED.toBoolean() || com.example.BuildConfig.DEMO_AUTH_ENABLED == "true")
+                } catch (e: Exception) {
+                    false
+                }
+
+                val builder = Room.databaseBuilder(
                     context.applicationContext,
                     LibraryDatabase::class.java,
                     "high_school_library_db"
                 )
-                .fallbackToDestructiveMigration()
-                .build()
+
+                if (isDemoEnabled) {
+                    // Only allow destructive migration in non-production, debug/demo modes
+                    builder.fallbackToDestructiveMigration()
+                } else {
+                    // Production: fail closed instead of silently wiping database during schema changes!
+                    // TODO: Explicit migrations must be defined and added here in production, e.g.:
+                    // builder.addMigrations(MIGRATION_1_2)
+                }
+
+                val instance = builder.build()
                 INSTANCE = instance
                 instance
             }
