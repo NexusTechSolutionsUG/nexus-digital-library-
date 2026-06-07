@@ -286,8 +286,17 @@ private fun LoginView(
     var activeTab by remember(initialTab) { mutableStateOf(initialTab) }
     
     // Maintain separate field states to deliver a premium UX
-    var studentId by remember { mutableStateOf("S4A-023") }
-    var email by remember { mutableStateOf("") }
+    var studentId by remember { mutableStateOf(if (initialTab == LoginTab.STUDENT) "S4A-023" else "") }
+    var email by remember {
+        mutableStateOf(
+            when (initialTab) {
+                LoginTab.TEACHER -> "teacher@nexustech.edu"
+                LoginTab.LIBRARIAN -> "librarian@nexustech.edu"
+                LoginTab.ADMINISTRATOR -> "admin@nexustech.edu"
+                else -> ""
+            }
+        )
+    }
     var password by remember { mutableStateOf("8585@@") }
     var passwordVisible by remember { mutableStateOf(false) }
     
