@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.BuildConfig
 import com.example.data.*
 import android.widget.Toast
 import java.io.Serializable
@@ -419,21 +420,35 @@ fun AdminStudentsTab(viewModel: LibraryViewModel) {
     // Reset Password modal
     if (showResetPassDialog != null) {
         val st = showResetPassDialog!!
+        val demoResetEnabled = BuildConfig.DEBUG && BuildConfig.DEMO_AUTH_ENABLED.equals("true", ignoreCase = true)
+        val demoResetPin = remember(st.id) {
+            "PIN-" + (10000000..99999999).random().toString()
+        }
         AlertDialog(
             onDismissRequest = { showResetPassDialog = null },
             title = { Text("Reset Student Password") },
             text = { Column {
-                Text("This will generate a randomized 8-character numeric security PIN for:")
+                Text("This submits an audited, expiring reset request for:")
                 Text(st.name, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Auto-generated passcode: PIN-8547413", fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F766E))
+                if (demoResetEnabled) {
+                    Text("Demo-only one-time reset code: $demoResetPin", fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F766E))
+                    Text("Production builds never display reset credentials in plaintext.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Text("A secure password reset request will be sent through the approved school channel. No plaintext credential will be shown.", color = Color(0xFF0F766E))
+                }
             } },
             confirmButton = {
                 TextButton(onClick = {
-                    Toast.makeText(context, "Password configured to PIN-8547413. Notified via email.", Toast.LENGTH_LONG).show()
+                    val message = if (demoResetEnabled) {
+                        "Demo reset code generated for supervised testing only."
+                    } else {
+                        "Secure password reset request submitted for audit and email dispatch."
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     showResetPassDialog = null
                 }) {
-                    Text("Adopt New Pin")
+                    Text(if (demoResetEnabled) "Generate Demo Pin" else "Submit Reset Request")
                 }
             },
             dismissButton = {

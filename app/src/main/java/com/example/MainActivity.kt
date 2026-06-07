@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
                     .edit()
                     .remove("saved_session")
                     .apply()
+                deleteSharedPreferences("nexus_secure_auth_prefs")
             } catch (ex: Exception) {
                 // Ignore silently in crash path
             }

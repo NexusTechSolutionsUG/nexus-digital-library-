@@ -37,11 +37,14 @@ object GeminiApiService {
         }
 
         if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            Log.w(TAG, "Gemini API key is standard placeholder status. Simulating AI Assistant.")
-            return@withContext simulateOfflineResponse(history)
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "Gemini API key is not configured. Using local AI Assistant simulation.")
+                return@withContext simulateOfflineResponse(history)
+            }
+            return@withContext "AI service is not configured for this build."
         }
 
-        val url = "$BASE_URL/$MODEL_NAME:generateContent?key=$apiKey"
+        val url = "$BASE_URL/$MODEL_NAME:generateContent"
         val mediaType = "application/json; charset=utf-8".toMediaType()
 
         try {
@@ -80,16 +83,21 @@ object GeminiApiService {
             root.put("contents", contentsArray)
 
             val jsonString = root.toString()
-            Log.d(TAG, "Request payload: $jsonString")
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Sending Gemini request with ${history.size} message(s)")
+            }
 
             val request = Request.Builder()
                 .url(url)
+                .addHeader("x-goog-api-key", apiKey)
                 .post(jsonString.toRequestBody(mediaType))
                 .build()
 
             client.newCall(request).execute().use { response ->
                 val bodyString = response.body?.string()
-                Log.d(TAG, "Response code: ${response.code}, body: $bodyString")
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Gemini response code: ${response.code}")
+                }
 
                 if (response.isSuccessful && bodyString != null) {
                     val respJson = JSONObject(bodyString)
@@ -109,8 +117,10 @@ object GeminiApiService {
                 return@withContext "Error: Failed to fetch valid response from AI services (Code ${response.code})."
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error generating content", e)
-            return@withContext "Network Error: ${e.message}. Preserving offline mode..."
+            if (BuildConfig.DEBUG) {
+                Log.e(TAG, "Gemini content generation failed")
+            }
+            return@withContext "Network Error: AI service is temporarily unavailable. Preserving offline mode..."
         }
     }
 

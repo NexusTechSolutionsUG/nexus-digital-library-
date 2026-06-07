@@ -1,6 +1,7 @@
 package com.example.data
 
 import android.content.Context
+import com.example.BuildConfig
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -17,7 +18,7 @@ import androidx.room.RoomDatabase
         BookAnnotation::class
     ],
     version = 2,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class LibraryDatabase : RoomDatabase() {
     abstract val libraryDao: LibraryDao
@@ -28,13 +29,15 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): LibraryDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                val builder = Room.databaseBuilder(
                     context.applicationContext,
                     LibraryDatabase::class.java,
                     "high_school_library_db"
                 )
-                .fallbackToDestructiveMigration()
-                .build()
+                if (BuildConfig.DEBUG && BuildConfig.DEMO_AUTH_ENABLED.equals("true", ignoreCase = true)) {
+                    builder.fallbackToDestructiveMigration(false)
+                }
+                val instance = builder.build()
                 INSTANCE = instance
                 instance
             }

@@ -3,6 +3,7 @@ package com.example.ui.auth
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.auth.AuthRepository
 import com.example.data.auth.AuthRepositoryImpl
 import com.example.data.auth.AuthResponse
@@ -172,17 +173,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _authState.value = AuthState.Error("Password must be at least 6 characters.")
             return
         }
-        if (staffAccessCode.trim() != "NEXUSTECH2026") {
-            _authState.value = AuthState.Error("Security Code Invalid: Please enter the active organization-approved Staff Registration Security Code to authorize your staff profile role.")
-            return
+        val demoStaffRegistration = BuildConfig.DEBUG &&
+            BuildConfig.DEMO_AUTH_ENABLED.equals("true", ignoreCase = true)
+        val roleForSignup = if (demoStaffRegistration) {
+            val configuredStaffAccessCode = BuildConfig.STAFF_ACCESS_CODE.trim()
+            if (configuredStaffAccessCode.isBlank() ||
+                configuredStaffAccessCode == "change-me-before-release" ||
+                staffAccessCode.trim() != configuredStaffAccessCode
+            ) {
+                _authState.value = AuthState.Error("Security Code Invalid: Please enter the active organization-approved Staff Registration Security Code to authorize your staff profile role.")
+                return
+            }
+            role
+        } else {
+            UserRole.STUDENT
         }
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.signUp(fullName, cleanEmail, password, role)
+            authRepository.signUp(fullName, cleanEmail, password, roleForSignup)
                 .onSuccess { session ->
                     if (session.accessToken.isNullOrEmpty()) {
                         _authState.value = AuthState.SuccessMessage(
-                            "Profile Registered Successfully! Please check your nexustech.edu email inbox to confirm your account before logging in."
+                            "Profile registered successfully. Staff privileges require server-side approval before staff workspace access is enabled."
                         )
                     } else {
                         _authState.value = AuthState.Authenticated(session)

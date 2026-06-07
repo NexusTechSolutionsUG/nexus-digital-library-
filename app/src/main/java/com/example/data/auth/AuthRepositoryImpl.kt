@@ -1,6 +1,7 @@
 package com.example.data.auth
 
 import android.content.Context
+import com.example.BuildConfig
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,13 +12,17 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
-import com.example.BuildConfig
 
 class AuthRepositoryImpl(context: Context) : AuthRepository {
 
     private val sharedPreferences = context.getSharedPreferences("nexus_auth_prefs", Context.MODE_PRIVATE)
     private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
     private val authResponseAdapter = moshi.adapter(AuthResponse::class.java)
+    private val authSessionStore: AuthSessionStore = try {
+        EncryptedAuthSessionStore(context, authResponseAdapter)
+    } catch (e: Exception) {
+        NoOpAuthSessionStore()
+    }
 
     private val _currentSession = MutableStateFlow<AuthResponse?>(null)
     override val currentSession: StateFlow<AuthResponse?> = _currentSession.asStateFlow()
@@ -43,7 +48,13 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
 
     private val api: SupabaseAuthApi by lazy {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            redactHeader("apikey")
+            redactHeader("Authorization")
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(logging)
@@ -59,6 +70,21 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(SupabaseAuthApi::class.java)
+    }
+
+
+    private val demoAuthEnabled: Boolean
+        get() = BuildConfig.DEBUG && BuildConfig.DEMO_AUTH_ENABLED.equals("true", ignoreCase = true)
+
+    private fun hasPlaceholderConfig(): Boolean {
+        return supabaseUrl == "https://your-project.supabase.co" ||
+            supabaseUrl.isBlank() ||
+            supabaseKey == "placeholder-anon-key-12345" ||
+            supabaseKey.isBlank()
+    }
+
+    private fun configurationFailure(): Result<AuthResponse> {
+        return Result.failure(Exception("Authentication service is not configured for this build."))
     }
 
     init {
@@ -83,25 +109,9 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
             // Map standard keys to Map<String, String> for serializing inside SignUpRequest
             val stringMetadata = userMetadata.mapValues { it.value.toString() }
 
-            if (supabaseUrl == "https://your-project.supabase.co" || supabaseKey == "placeholder-anon-key-12345") {
-                // Config placeholder fallback for local sandbox demo
-                val dummyUser = UserDto(
-                    id = "usr_" + System.currentTimeMillis().toString(),
-                    email = email,
-                    userMetadata = UserMetadata(
-                        firstName = fullName.substringBefore(" "),
-                        lastName = fullName.substringAfter(" ", "User"),
-                        role = role.name.lowercase()
-                    )
-                )
-                val response = AuthResponse(
-                    accessToken = "dummy_token_" + System.currentTimeMillis(),
-                    tokenType = "bearer",
-                    expiresIn = 3600,
-                    user = dummyUser
-                )
-                saveSession(response)
-                return Result.success(response)
+            if (hasPlaceholderConfig()) {
+                if (!demoAuthEnabled) return configurationFailure()
+                return performSandboxSignUp(fullName, email, role)
             }
 
             val request = SignUpRequest(email, password, stringMetadata)
@@ -114,8 +124,7 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
                 }
                 Result.success(authResponse)
             } else {
-                val errorMsg = response.errorBody()?.string() ?: "Signup failed"
-                Result.failure(Exception("Supabase Error: $errorMsg"))
+                Result.failure(Exception("Signup rejected by Supabase (${response.code()})."))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -157,6 +166,26 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
         }
     }
 
+    private fun performSandboxSignUp(fullName: String, email: String, role: UserRole): Result<AuthResponse> {
+        val dummyUser = UserDto(
+            id = "usr_" + System.currentTimeMillis().toString(),
+            email = email,
+            userMetadata = UserMetadata(
+                firstName = fullName.substringBefore(" "),
+                lastName = fullName.substringAfter(" ", "User"),
+                role = role.name.lowercase()
+            )
+        )
+        val response = AuthResponse(
+            accessToken = "dummy_token_" + System.currentTimeMillis(),
+            tokenType = "bearer",
+            expiresIn = 3600,
+            user = dummyUser
+        )
+        saveSession(response)
+        return Result.success(response)
+    }
+
     private fun performSandboxLogin(email: String): Result<AuthResponse> {
         val derivedRole = deriveRoleFromEmail(email)
         val firstName = deriveFirstNameForRole(derivedRole, email)
@@ -182,12 +211,8 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<AuthResponse> {
         return try {
-            val isPlaceholderConfig = supabaseUrl == "https://your-project.supabase.co" || 
-                                      supabaseUrl.isBlank() ||
-                                      supabaseKey == "placeholder-anon-key-12345" || 
-                                      supabaseKey.isBlank()
-
-            if (isPlaceholderConfig) {
+            if (hasPlaceholderConfig()) {
+                if (!demoAuthEnabled) return configurationFailure()
                 return performSandboxLogin(email)
             }
 
@@ -199,42 +224,27 @@ class AuthRepositoryImpl(context: Context) : AuthRepository {
                 saveSession(authResponse)
                 Result.success(authResponse)
             } else {
-                // If live authentication fails (e.g. invalid grant or unregistered mapping), fall back to Sandbox for evaluation!
-                return performSandboxLogin(email)
+                Result.failure(Exception("Authentication rejected by Supabase (${response.code()})."))
             }
         } catch (e: Exception) {
-            return performSandboxLogin(email)
+            Result.failure(Exception("Unable to reach the authentication service. Please try again."))
         }
     }
 
     override suspend fun logout() {
         _currentSession.value = null
-        sharedPreferences.edit().remove("saved_session").apply()
+        authSessionStore.clear()
     }
 
     override fun loadSavedSession(): AuthResponse? {
-        val savedJson = sharedPreferences.getString("saved_session", null)
-        return try {
-            if (savedJson != null) {
-                val response = authResponseAdapter.fromJson(savedJson)
-                _currentSession.value = response
-                response
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
+        val response = authSessionStore.load()
+        _currentSession.value = response
+        return response
     }
 
     private fun saveSession(response: AuthResponse) {
         _currentSession.value = response
-        try {
-            val json = authResponseAdapter.toJson(response)
-            sharedPreferences.edit().putString("saved_session", json).apply()
-        } catch (e: Exception) {
-            // Save gracefully fallback
-        }
+        authSessionStore.save(response)
     }
 
     private fun prepopulateDefaultMappings() {
