@@ -172,37 +172,18 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
             }
 
             // Dynamic items mapping
-            val drawerItems = when (currentRole) {
-                UserRole.TEACHER -> listOf(
-                    "Dashboard" to Icons.Default.Dashboard,
-                    "Classes" to Icons.Default.People,
-                    "Assignments" to Icons.Default.Assignment,
-                    "Resources" to Icons.Default.Folder,
-                    "Quizzes" to Icons.Default.FactCheck,
-                    "Students" to Icons.Default.School,
-                    "Discussions" to Icons.Default.Forum
-                )
-                UserRole.LIBRARIAN -> listOf(
-                    "Dashboard" to Icons.Default.Dashboard,
-                    "Books" to Icons.Default.Book,
-                    "Subjects" to Icons.Default.LibraryBooks,
-                    "Uploads" to Icons.Default.Upload,
-                    "Reports" to Icons.Default.Assessment
-                )
-                else -> listOf( // ADMIN / SUPER_ADMIN
-                    "Overview" to Icons.Default.Dashboard,
-                    "Students" to Icons.Default.People,
-                    "Teachers" to Icons.Default.School,
-                    "Librarians" to Icons.Default.LocalLibrary,
-                    "Classes" to Icons.Default.Domain,
-                    "Subjects" to Icons.Default.Book,
-                    "Resources" to Icons.Default.Category,
-                    "Assignments" to Icons.Default.Assignment,
-                    "AI Quiz Center" to Icons.Default.Psychology,
-                    "Analytics" to Icons.Default.TrendingUp,
-                    "Settings" to Icons.Default.Settings
-                )
-            }
+            val drawerItems = listOf(
+                "Overview" to Icons.Default.Dashboard,
+                "Books & Catalog" to Icons.Default.Book,
+                "Student Progress" to Icons.Default.People,
+                "Classes & Streams" to Icons.Default.Domain,
+                "Subjects Catalog" to Icons.Default.LibraryBooks,
+                "Assignments" to Icons.Default.Assignment,
+                "AI Quiz Center" to Icons.Default.Psychology,
+                "Upload Resources" to Icons.Default.Upload,
+                "Reports & Auditing" to Icons.Default.Assessment,
+                "System Settings" to Icons.Default.Settings
+            )
 
             // Adjust selected index out-of-bounds safety on role-swapping demos on read-time
             val staffSelectedTabSafe = if (staffSelectedTab >= drawerItems.size) 0 else staffSelectedTab
@@ -2233,9 +2214,6 @@ fun RoleSelectorRow(viewModel: LibraryViewModel) {
                         val icon = when(role) {
                             UserRole.STUDENT -> Icons.Default.Person
                             UserRole.LIBRARIAN -> Icons.Default.LocalLibrary
-                            UserRole.TEACHER -> Icons.Default.School
-                            UserRole.ADMIN -> Icons.Default.ManageAccounts
-                            UserRole.SUPER_ADMIN -> Icons.Default.AutoMode
                         }
                         Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -2602,7 +2580,6 @@ fun RoleAdministrationDashboard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val icon = when(role) {
                         UserRole.LIBRARIAN -> Icons.Default.AdminPanelSettings
-                        UserRole.TEACHER -> Icons.Default.AssignmentInd
                         else -> Icons.Default.Dashboard
                     }
                     Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -2631,7 +2608,8 @@ fun RoleAdministrationDashboard(
 
             when (role) {
                 UserRole.LIBRARIAN -> {
-                    Text("As a school librarian, you can modify inventory, scan barcode codes, and append books to students catalog feeds.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                    // 1. Librarian Controls
+                    Text("As an authorized Library Staff console, manage catalog inventory, register class assignments, and monitor real-time library usage metrics:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = onAddBookClicked,
@@ -2653,12 +2631,11 @@ fun RoleAdministrationDashboard(
                             Text("Scan RESTOCK", fontSize = 11.sp)
                         }
                     }
-                }
-                UserRole.TEACHER -> {
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // 2. Classroom Tasks shortcut
                     val assignments by viewModel.teacherAssignments.collectAsState()
-                    Text("As an educator, assign books with homework quizzes and monitor student progress results below:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
-                    
-                    // Create homework assignments
                     Button(
                         onClick = onAssignClicked,
                         modifier = Modifier.fillMaxWidth().height(36.dp).testTag("cms_create_assignment_shortcut")
@@ -2668,33 +2645,32 @@ fun RoleAdministrationDashboard(
                         Text("Assign Reading & Interactive Quiz", fontSize = 11.sp)
                     }
 
-                    // Display list of student homework assigned
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Active Classroom Tasks:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        assignments.take(2).forEach { asg ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(asg.title, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    Text("Book: ${asg.bookTitle} | Due: ${asg.dueDate}", fontSize = 9.sp, color = Color.Gray)
+                    if (assignments.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Active Classroom Tasks:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            assignments.take(2).forEach { asg ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(asg.title, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text("Book: ${asg.bookTitle} | Due: ${asg.dueDate}", fontSize = 9.sp, color = Color.Gray)
+                                    }
+                                    Text("${asg.completedCount}/${asg.totalCount} Done", fontSize = 10.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
                                 }
-                                Text("${asg.completedCount}/${asg.totalCount} Done", fontSize = 10.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
-                }
-                UserRole.ADMIN, UserRole.SUPER_ADMIN -> {
-                    Text("School analytics dashboards. Custom vector charts mapping library metric metrics:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
-                    
-                    // Beautiful custom Jetpack Compose Canvas charts
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // 3. Analytics Charts
                     Row(modifier = Modifier.fillMaxWidth().height(100.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        // Chart Container
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -2725,7 +2701,6 @@ fun RoleAdministrationDashboard(
                             }
                         }
 
-                        // Circular Target Gauge
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -4895,7 +4870,7 @@ fun AcademicForumDiscussionDeck(viewModel: LibraryViewModel, subjectId: String) 
                                         ) {
                                             Icon(Icons.Default.Flag, contentDescription = "Report Spam", tint = Color.Red.copy(alpha = 0.6f), modifier = Modifier.size(10.dp))
                                         }
-                                        if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
+                                        if (currentRole == UserRole.LIBRARIAN) {
                                             Spacer(modifier = Modifier.width(4.dp))
                                             IconButton(
                                                 onClick = { viewModel.deleteForumPost(msg.id) },
@@ -6528,41 +6503,18 @@ fun StaffWorkspaceView(
             .background(MaterialTheme.colorScheme.background)
     ) {
         when (role) {
-            UserRole.TEACHER -> {
-                when (selectedTab) {
-                    0 -> TeacherDashboardTab(viewModel)
-                    1 -> TeacherClassesTab(viewModel)
-                    2 -> TeacherAssignmentsTab(viewModel)
-                    3 -> TeacherResourcesTab(viewModel)
-                    4 -> TeacherQuizTab(viewModel)
-                    5 -> TeacherStudentsTab(viewModel)
-                    6 -> TeacherDiscussionsTab(viewModel)
-                    else -> TeacherDashboardTab(viewModel)
-                }
-            }
             UserRole.LIBRARIAN -> {
                 when (selectedTab) {
-                    0 -> LibrarianDashboardTab(viewModel)
-                    1 -> LibrarianBooksTab(viewModel)
-                    2 -> LibrarianSubjectsTab(viewModel)
-                    3 -> LibrarianUploadsTab(viewModel)
-                    4 -> LibrarianReportsTab(viewModel)
-                    else -> LibrarianDashboardTab(viewModel)
-                }
-            }
-            UserRole.ADMIN, UserRole.SUPER_ADMIN -> {
-                when (selectedTab) {
                     0 -> AdminOverviewTab(viewModel = viewModel, onNavigateToTab = onNavigateToTab)
-                    1 -> AdminStudentsTab(viewModel = viewModel)
-                    2 -> AdminTeachersTab(viewModel = viewModel)
-                    3 -> AdminLibrariansTab(viewModel = viewModel)
-                    4 -> AdminClassesTab(viewModel = viewModel)
-                    5 -> AdminSubjectsTab(viewModel = viewModel)
-                    6 -> AdminResourcesTab(viewModel = viewModel)
-                    7 -> AdminAssignmentsTab(viewModel = viewModel)
-                    8 -> AdminAIQuizTab(viewModel = viewModel)
-                    9 -> AdminAnalyticsTab(viewModel = viewModel)
-                    10 -> AdminSettingsTab(viewModel = viewModel)
+                    1 -> LibrarianBooksTab(viewModel)
+                    2 -> AdminStudentsTab(viewModel = viewModel)
+                    3 -> AdminClassesTab(viewModel = viewModel)
+                    4 -> AdminSubjectsTab(viewModel = viewModel)
+                    5 -> AdminAssignmentsTab(viewModel = viewModel)
+                    6 -> AdminAIQuizTab(viewModel = viewModel)
+                    7 -> LibrarianUploadsTab(viewModel)
+                    8 -> LibrarianReportsTab(viewModel)
+                    9 -> AdminSettingsTab(viewModel = viewModel)
                     else -> AdminOverviewTab(viewModel = viewModel, onNavigateToTab = onNavigateToTab)
                 }
             }

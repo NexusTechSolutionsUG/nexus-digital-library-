@@ -5,10 +5,7 @@ import com.squareup.moshi.JsonClass
 
 enum class UserRole {
     STUDENT,
-    LIBRARIAN,
-    TEACHER,
-    ADMIN,
-    SUPER_ADMIN;
+    LIBRARIAN;
 
     val displayName: String
         get() = name.lowercase().replaceFirstChar { it.uppercase() }

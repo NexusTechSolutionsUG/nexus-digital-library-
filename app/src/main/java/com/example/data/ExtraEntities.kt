@@ -3,7 +3,7 @@ package com.example.data
 import java.io.Serializable
 
 enum class UserRole {
-    STUDENT, LIBRARIAN, TEACHER, ADMIN, SUPER_ADMIN
+    STUDENT, LIBRARIAN
 }
 
 enum class SyncStatus {

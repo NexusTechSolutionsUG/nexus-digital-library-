@@ -60,18 +60,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     // Post-auth security validation & compartment check
                     val userRoleStr = session.user?.userMetadata?.role ?: "student"
                     val actualRole = when(userRoleStr.lowercase()) {
-                        "teacher" -> LoginTab.TEACHER
-                        "librarian" -> LoginTab.LIBRARIAN
-                        "admin", "super_admin" -> LoginTab.ADMINISTRATOR
+                        "librarian", "teacher", "admin", "super_admin" -> LoginTab.LIBRARIAN
                         else -> LoginTab.STUDENT
                     }
 
                     if (loginTab != null && actualRole != loginTab) {
                         val expectedPortal = when (loginTab) {
                             LoginTab.STUDENT -> "Student Portal"
-                            LoginTab.TEACHER -> "Teacher Desk"
                             LoginTab.LIBRARIAN -> "Librarian Terminal"
-                            LoginTab.ADMINISTRATOR -> "Admin Center"
                         }
                         val registeredRoleName = actualRole.name.lowercase().replaceFirstChar { it.uppercase() }
                         _authState.value = AuthState.Error("Unauthorized role access: Access Denied. Your account is registered as $registeredRoleName and is denied access to the $expectedPortal. Please use the appropriate portal.")

@@ -272,7 +272,7 @@ fun AuthEntryScreen(
 }
 
 enum class LoginTab {
-    STUDENT, TEACHER, LIBRARIAN, ADMINISTRATOR
+    STUDENT, LIBRARIAN
 }
 
 @Composable
@@ -290,9 +290,7 @@ private fun LoginView(
     var email by remember {
         mutableStateOf(
             when (initialTab) {
-                LoginTab.TEACHER -> "teacher@nexustech.edu"
                 LoginTab.LIBRARIAN -> "librarian@nexustech.edu"
-                LoginTab.ADMINISTRATOR -> "admin@nexustech.edu"
                 else -> ""
             }
         )
@@ -356,15 +354,11 @@ private fun LoginView(
                     val isSelected = activeTab == tab
                     val label = when (tab) {
                         LoginTab.STUDENT -> "Student"
-                        LoginTab.TEACHER -> "Teacher"
                         LoginTab.LIBRARIAN -> "Librarian"
-                        LoginTab.ADMINISTRATOR -> "Admin"
                     }
                     val icon = when (tab) {
                         LoginTab.STUDENT -> Icons.Default.School
-                        LoginTab.TEACHER -> Icons.Default.SupervisorAccount
                         LoginTab.LIBRARIAN -> Icons.Default.LocalLibrary
-                        LoginTab.ADMINISTRATOR -> Icons.Default.AdminPanelSettings
                     }
 
                     Box(
@@ -382,14 +376,8 @@ private fun LoginView(
                                     LoginTab.STUDENT -> {
                                         studentId = "S4A-023"
                                     }
-                                    LoginTab.TEACHER -> {
-                                        email = "teacher@nexustech.edu"
-                                    }
                                     LoginTab.LIBRARIAN -> {
                                         email = "librarian@nexustech.edu"
-                                    }
-                                    LoginTab.ADMINISTRATOR -> {
-                                        email = "admin@nexustech.edu"
                                     }
                                 }
                             }
@@ -458,22 +446,10 @@ private fun LoginView(
                     value = email,
                     onValueChange = { email = it },
                     label = { 
-                        Text(
-                            when (activeTab) {
-                                LoginTab.TEACHER -> "Teacher Email Address"
-                                LoginTab.LIBRARIAN -> "Librarian Email"
-                                else -> "Administrative Email ID"
-                            }
-                        ) 
+                        Text("Librarian & Staff Email") 
                     },
                     placeholder = { 
-                        Text(
-                            when (activeTab) {
-                                LoginTab.TEACHER -> "e.g. teacher@nexustech.edu"
-                                LoginTab.LIBRARIAN -> "e.g. librarian@nexustech.edu"
-                                else -> "e.g. admin@nexustech.edu"
-                            }
-                        ) 
+                        Text("e.g. librarian@nexustech.edu") 
                     },
                     singleLine = true,
                     leadingIcon = { 
@@ -661,6 +637,21 @@ private fun SignUpView(
     onNavigateToLogin: () -> Unit,
     onBackToCategories: () -> Unit
 ) {
+    var activeTab by remember(initialCategory) { mutableStateOf(initialCategory) }
+    
+    // States for Student Signup
+    var studentName by remember { mutableStateOf("") }
+    var studentId by remember { mutableStateOf("") }
+    var studentPassword by remember { mutableStateOf("") }
+    var studentPasswordVisible by remember { mutableStateOf(false) }
+
+    // States for Staff Signup
+    var staffName by remember { mutableStateOf("") }
+    var staffEmail by remember { mutableStateOf("") }
+    var staffPassword by remember { mutableStateOf("") }
+    var staffPasswordVisible by remember { mutableStateOf(false) }
+    var staffAccessCode by remember { mutableStateOf("NEXUSTECH2026") }
+
     Card(
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -691,7 +682,7 @@ private fun SignUpView(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Registration Restricted",
+                    text = "Create Profile",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -699,44 +690,240 @@ private fun SignUpView(
                 )
             }
 
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = "Registration Locked Icon",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(64.dp)
-            )
+            // Segmented Role Selector tabs (Only Student vs Staff based on current choice)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                listOf(LoginTab.STUDENT, LoginTab.LIBRARIAN).forEach { tab ->
+                    val isSelected = (tab == LoginTab.STUDENT && activeTab == LoginTab.STUDENT) || (tab == LoginTab.LIBRARIAN && activeTab != LoginTab.STUDENT)
+                    val label = if (tab == LoginTab.STUDENT) "Student" else "Staff"
+                    val icon = if (tab == LoginTab.STUDENT) Icons.Default.School else Icons.Default.SupervisorAccount
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else Color.Transparent
+                            )
+                            .clickable {
+                                activeTab = if (tab == LoginTab.STUDENT) LoginTab.STUDENT else LoginTab.LIBRARIAN
+                            }
+                            .padding(vertical = 10.dp)
+                            .testTag("signup_tab_${tab.name.lowercase()}"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = "$label icon",
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (activeTab == LoginTab.STUDENT) {
+                // STUDENT SIGNUP FORM
+                OutlinedTextField(
+                    value = studentName,
+                    onValueChange = { studentName = it },
+                    label = { Text("Full Name (First and Last)") },
+                    placeholder = { Text("e.g. John Doe") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_student_name")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = studentId,
+                    onValueChange = { studentId = it },
+                    label = { Text("Student ID Code") },
+                    placeholder = { Text("e.g. S4A-152") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_student_id")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = studentPassword,
+                    onValueChange = { studentPassword = it },
+                    label = { Text("Secure Password (6+ chars)") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    trailingIcon = {
+                        val image = if (studentPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { studentPasswordVisible = !studentPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = null)
+                        }
+                    },
+                    visualTransformation = if (studentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_student_password")
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        onSignUpStudent(studentName, studentId, studentPassword)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("signup_student_submit")
+                ) {
+                    Text("Register Student Profile", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+
+            } else {
+                // STAFF SIGNUP FORM
+                OutlinedTextField(
+                    value = staffName,
+                    onValueChange = { staffName = it },
+                    label = { Text("Full Name (First and Last)") },
+                    placeholder = { Text("e.g. Sarah Jenkins") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_staff_name")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = staffEmail,
+                    onValueChange = { staffEmail = it },
+                    label = { Text("School Email Address") },
+                    placeholder = { Text("e.g. staff.member@nexustech.edu") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_staff_email")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = staffPassword,
+                    onValueChange = { staffPassword = it },
+                    label = { Text("Secure Password (6+ chars)") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    trailingIcon = {
+                        val image = if (staffPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { staffPasswordVisible = !staffPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = null)
+                        }
+                    },
+                    visualTransformation = if (staffPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_staff_password")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = staffAccessCode,
+                    onValueChange = { staffAccessCode = it },
+                    label = { Text("Staff Registration Security Code") },
+                    placeholder = { Text("e.g. NEXUSTECH2026") },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("signup_staff_access_code")
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        onSignUpStaff(staffName, staffEmail, staffPassword, UserRole.LIBRARIAN, staffAccessCode)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("signup_staff_submit")
+                ) {
+                    Text("Register Staff Profile", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Registration is Disabled",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Public registration is disabled in this school library application. Student, Teacher, Librarian, and Administrator profiles must be created exclusively by authorized system administrators.",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
+            TextButton(
                 onClick = onNavigateToLogin,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .testTag("signup_back_to_login_button")
+                modifier = Modifier.testTag("signup_to_login_button")
             ) {
-                Text("Return to Secure Login", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Already have an account? Sign In",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -844,25 +1031,11 @@ fun CategorySelectionScreen(
                     color = Color(0xFF3B82F6) // Bright blue
                 ),
                 CategoryItem(
-                    tab = LoginTab.TEACHER,
-                    title = "Teacher Desk",
-                    subtitle = "Analyze student activity, curate custom bookshelves, and assign material.",
-                    icon = Icons.Default.SupervisorAccount,
-                    color = Color(0xFF10B981) // Emerald green
-                ),
-                CategoryItem(
                     tab = LoginTab.LIBRARIAN,
                     title = "Librarian Terminal",
-                    subtitle = "Supervise copy physical status, monitor borrowings, and push global alerts.",
+                    subtitle = "Supervise library catalog, manage borrowings, assign material, and review metrics.",
                     icon = Icons.Default.LocalLibrary,
                     color = Color(0xFFF59E0B) // Amber orange
-                ),
-                CategoryItem(
-                    tab = LoginTab.ADMINISTRATOR,
-                    title = "Admin Center",
-                    subtitle = "Manage secure database connections, review activity logs, and system metrics.",
-                    icon = Icons.Default.AdminPanelSettings,
-                    color = Color(0xFFEF4444) // Scarlet red
                 )
             )
             

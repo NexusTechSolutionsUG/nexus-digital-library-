@@ -98,10 +98,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         
         val mappedRole = when (roleStr?.uppercase()) {
             "STUDENT" -> UserRole.STUDENT
-            "LIBRARIAN" -> UserRole.LIBRARIAN
-            "TEACHER" -> UserRole.TEACHER
-            "ADMIN" -> UserRole.ADMIN
-            "SUPER_ADMIN" -> UserRole.SUPER_ADMIN
+            "LIBRARIAN", "TEACHER", "ADMIN", "SUPER_ADMIN" -> UserRole.LIBRARIAN
             else -> UserRole.STUDENT
         }
         currentRole.value = mappedRole
