@@ -89,3 +89,17 @@ data class SystemStorageMetric(
     val compressionRatio: String
 ) : Serializable
 
+data class ReadingChallenge(
+    val id: String,
+    val title: String,
+    val description: String,
+    val targetType: String, // "STREAK", "XP", "BOOKS"
+    val targetValue: Int,
+    val currentValue: Int,
+    val xpReward: Int,
+    val category: String, // "Literature", "Science", "General"
+    val holdsGoldBadge: Boolean = true,
+    val isJoined: Boolean = false,
+    val isClaimed: Boolean = false
+) : Serializable
+

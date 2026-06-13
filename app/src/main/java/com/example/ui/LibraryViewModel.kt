@@ -876,9 +876,25 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun updateRecordProgress(record: BorrowRecord, progress: Int) {
         viewModelScope.launch {
             repository.updateReadingProgress(record, progress)
+            
+            // Dynamic integration with Reading Challenges
+            val updated = readingChallenges.value.map { challenge ->
+                if (challenge.id == "rc1" && record.bookTitle.contains("Hamlet", ignoreCase = true)) {
+                    // Update Classic Drama Marathon progress based on Hamlet progress
+                    challenge.copy(currentValue = progress)
+                } else if (challenge.id == "rc3" && progress == 100) {
+                    // Complete Syllabus Conqueror challenge if any book hits 100%
+                    challenge.copy(currentValue = 100)
+                } else challenge
+            }
+            readingChallenges.value = updated
+            
             // If they reach 100%, increment reading streak as encouragement!
             if (progress == 100 && record.readingProgress < 100) {
                 readingStreak.value += 1
+                currentXpPoints.value += 50
+                addNotification("Complete Read!", "Finished reading ${record.bookTitle}! +50 XP.", "goal")
+                checkLevelProgression()
             }
         }
     }
@@ -1406,6 +1422,139 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     val currentXpPoints = MutableStateFlow(2850)
     val currentLevelRank = MutableStateFlow("S4 Eagle Candidate")
     val calendarRemindersSynced = MutableStateFlow(false)
+
+    val readingChallenges = MutableStateFlow<List<ReadingChallenge>>(listOf(
+        ReadingChallenge(
+            id = "rc1",
+            title = "Classic Drama Marathon",
+            description = "Complete reading 80% or more of 'Hamlet' and log page goals.",
+            targetType = "BOOKS",
+            targetValue = 80,
+            currentValue = 65,
+            xpReward = 200,
+            category = "Literature",
+            holdsGoldBadge = true,
+            isJoined = true,
+            isClaimed = false
+        ),
+        ReadingChallenge(
+            id = "rc2",
+            title = "Science & Biosphere Explorer",
+            description = "Study active Biology past papers and core ecosystem lecture materials.",
+            targetType = "XP",
+            targetValue = 300,
+            currentValue = 180,
+            xpReward = 150,
+            category = "Science",
+            holdsGoldBadge = false,
+            isJoined = false,
+            isClaimed = false
+        ),
+        ReadingChallenge(
+            id = "rc3",
+            title = "Syllabus Conqueror",
+            description = "Achieve 100% reading completion on any standard candidate textbook.",
+            targetType = "BOOKS",
+            targetValue = 100,
+            currentValue = 100,
+            xpReward = 400,
+            category = "General",
+            holdsGoldBadge = true,
+            isJoined = true,
+            isClaimed = false
+        ),
+        ReadingChallenge(
+            id = "rc4",
+            title = "Steady Scholar",
+            description = "Maintain a reading habit for at least 5 days of the week on the tracker.",
+            targetType = "STREAK",
+            targetValue = 5,
+            currentValue = 4,
+            xpReward = 250,
+            category = "Streak",
+            holdsGoldBadge = true,
+            isJoined = true,
+            isClaimed = false
+        )
+    ))
+
+    val dailyReadingLog = MutableStateFlow<Map<String, Boolean>>(mapOf(
+        "Mon" to true,
+        "Tue" to true,
+        "Wed" to false,
+        "Thu" to true,
+        "Fri" to true,
+        "Sat" to false,
+        "Sun" to false
+    ))
+
+    fun joinReadingChallenge(id: String) {
+        val currentChallenges = readingChallenges.value.map { challenge ->
+            if (challenge.id == id) {
+                challenge.copy(isJoined = true)
+            } else challenge
+        }
+        readingChallenges.value = currentChallenges
+        val challenge = currentChallenges.firstOrNull { it.id == id }
+        if (challenge != null) {
+            addNotification(
+                "Joined Reading Challenge",
+                "You registered for '${challenge.title}'. Ready to build elite habits!",
+                "goal"
+            )
+        }
+    }
+
+    fun claimChallengeReward(id: String) {
+        var rewardPoints = 0
+        val currentChallenges = readingChallenges.value.map { challenge ->
+            if (challenge.id == id) {
+                rewardPoints = challenge.xpReward
+                challenge.copy(isClaimed = true)
+            } else challenge
+        }
+        if (rewardPoints > 0) {
+            readingChallenges.value = currentChallenges
+            currentXpPoints.value += rewardPoints
+            val challenge = currentChallenges.firstOrNull { it.id == id }
+            if (challenge != null) {
+                addNotification(
+                    "Milestone Reward Claimed!",
+                    "Acclaimed reward of ${challenge.xpReward} XP for completing '${challenge.title}'!",
+                    "goal"
+                )
+            }
+            checkLevelProgression()
+        }
+    }
+
+    fun toggleDailyReadingLog(day: String) {
+        val currentLog = dailyReadingLog.value.toMutableMap()
+        val previousState = currentLog[day] ?: false
+        val newState = !previousState
+        currentLog[day] = newState
+        dailyReadingLog.value = currentLog
+        
+        // Dynamic streak adjustment
+        val checkedCount = currentLog.values.count { it }
+        
+        // Update Steady Scholar challenge progress
+        val currentChallenges = readingChallenges.value.map { challenge ->
+            if (challenge.id == "rc4") {
+                challenge.copy(currentValue = checkedCount)
+            } else challenge
+        }
+        readingChallenges.value = currentChallenges
+
+        if (newState) {
+            readingStreak.value += 1
+            currentXpPoints.value += 20
+            addNotification("Reading Habit Logged", "Marked research complete on $day! Earned +20 XP.", "goal")
+            checkLevelProgression()
+        } else {
+            readingStreak.value = (readingStreak.value - 1).coerceAtLeast(0)
+        }
+    }
 
     fun toggleFocusTimer() {
         focusTimerActive.value = !focusTimerActive.value

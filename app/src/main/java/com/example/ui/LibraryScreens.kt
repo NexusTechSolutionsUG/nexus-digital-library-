@@ -108,11 +108,11 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                             modifier = Modifier.testTag("tab_ai_librarian")
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Default.Campaign, contentDescription = "News") },
-                            label = { Text("News", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
+                            icon = { Icon(Icons.Default.EmojiEvents, contentDescription = "Dashboard") },
+                            label = { Text("Dashboard", fontWeight = FontWeight.SemiBold, fontSize = 10.sp) },
                             selected = selectedTab == 3,
                             onClick = { selectedTab = 3 },
-                            modifier = Modifier.testTag("tab_news")
+                            modifier = Modifier.testTag("tab_dashboard")
                         )
                         NavigationBarItem(
                             icon = { Icon(Icons.Default.ContactMail, contentDescription = "Profile") },
@@ -154,7 +154,7 @@ fun LibraryDashboard(viewModel: LibraryViewModel, onLogout: () -> Unit = {}) {
                             0 -> CatalogTab(viewModel)
                             1 -> MyBooksTab(viewModel)
                             2 -> AILibrarianTab(viewModel)
-                            3 -> CampusNewsTab(viewModel)
+                            3 -> StudentProgressDashboardScreen(viewModel)
                             4 -> StudentCardTab(viewModel, onLogout)
                         }
                     }

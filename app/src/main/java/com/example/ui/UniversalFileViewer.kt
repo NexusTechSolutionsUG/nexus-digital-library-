@@ -390,6 +390,23 @@ fun UniversalFileViewerScreen(
                                     tint = if (scaleTheme == "light") Color.Black else Color.White
                                 )
                             }
+
+                            // External View Button
+                            IconButton(
+                                onClick = {
+                                    val f = selectedFile
+                                    if (f != null) {
+                                        openFileInExternalViewer(context, f, if (f.id == "disk-file") localFileUri else null)
+                                    }
+                                },
+                                modifier = Modifier.testTag("external_file_viewer_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Launch,
+                                    contentDescription = "Open in External App",
+                                    tint = if (scaleTheme == "light") Color.Black else Color.White
+                                )
+                            }
                             
                             // Dark Mode Selector Button
                             IconButton(onClick = {
@@ -787,6 +804,39 @@ fun MainInteractiveViewer(
             }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            val currentContext = LocalContext.current
+            if (!isFullscreen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(pageColors.first.copy(alpha = 0.8f))
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Viewing: ${file.name} (${file.size})",
+                        fontSize = 11.sp,
+                        color = pageColors.second,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    TextButton(
+                        onClick = {
+                            openFileInExternalViewer(currentContext, file)
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = AcademicGold),
+                        modifier = Modifier.testTag("inline_external_viewer_button")
+                    ) {
+                        Icon(Icons.Default.Launch, contentDescription = "Open in External App", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Open externally", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Divider(color = pageColors.second.copy(alpha = 0.1f), thickness = 0.5.dp)
+            }
+
             if (file.format == FileFormat.MP4 || file.format == FileFormat.WEBM) {
                 // Interactive Simulated MP4 Lecturer tutorial view
                 VideoLecturerSimulator(
@@ -2072,6 +2122,130 @@ fun ZoomableBox(
             .transformable(state = state)
     ) {
         content(scale, offset)
+    }
+}
+
+private fun openFileInExternalViewer(context: android.content.Context, file: EducationalFile, customLocalUri: Uri? = null) {
+    try {
+        val uri: Uri
+        val mimeType = when (file.format) {
+            FileFormat.PDF -> "application/pdf"
+            FileFormat.DOCX -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            FileFormat.TXT -> "text/plain"
+            FileFormat.EPUB -> "application/epub+zip"
+            FileFormat.PPTX -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            FileFormat.XLSX -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            FileFormat.JPG -> "image/jpeg"
+            FileFormat.PNG -> "image/png"
+            FileFormat.WEBP -> "image/webp"
+            FileFormat.GIF -> "image/gif"
+            FileFormat.SVG -> "image/svg+xml"
+            FileFormat.MP4 -> "video/mp4"
+            FileFormat.WEBM -> "video/webm"
+            FileFormat.MP3 -> "audio/mpeg"
+            FileFormat.WAV -> "audio/wav"
+            else -> "*/*"
+        }
+
+        if (file.id == "disk-file" && customLocalUri != null) {
+            uri = customLocalUri
+        } else {
+            val cacheDir = context.cacheDir
+            val tempFile = java.io.File(cacheDir, file.name)
+            
+            when (file.format) {
+                FileFormat.TXT, FileFormat.PDF, FileFormat.DOCX, FileFormat.EPUB, FileFormat.PPTX, FileFormat.RTF -> {
+                    val textContent = if (file.contentPages.isNotEmpty()) {
+                        file.contentPages.joinToString("\n\n")
+                    } else {
+                        "Educational Reference Document: ${file.name}\nSize: ${file.size}\nThis is a syllabus resource provided by High School Library."
+                    }
+                    tempFile.writeText(textContent)
+                }
+                FileFormat.JPG, FileFormat.PNG, FileFormat.WEBP, FileFormat.GIF, FileFormat.SVG -> {
+                    val width = 800
+                    val height = 600
+                    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bitmap)
+                    val paint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.DKGRAY
+                        style = android.graphics.Paint.Style.FILL
+                    }
+                    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                    
+                    paint.apply {
+                        color = android.graphics.Color.YELLOW
+                        style = android.graphics.Paint.Style.STROKE
+                        strokeWidth = 15f
+                    }
+                    canvas.drawRect(20f, 20f, (width - 20).toFloat(), (height - 20).toFloat(), paint)
+                    
+                    paint.apply {
+                        color = android.graphics.Color.WHITE
+                        textSize = 40f
+                        style = android.graphics.Paint.Style.FILL
+                        isAntiAlias = true
+                    }
+                    canvas.drawText("High School Library Resource", 50f, 100f, paint)
+                    
+                    paint.textSize = 30f
+                    paint.color = android.graphics.Color.LTGRAY
+                    canvas.drawText("File: ${file.name}", 50f, 200f, paint)
+                    canvas.drawText("Size: ${file.size}", 50f, 250f, paint)
+                    canvas.drawText("Format: ${file.format.name}", 50f, 300f, paint)
+                    
+                    paint.color = android.graphics.Color.CYAN
+                    paint.textSize = 24f
+                    canvas.drawText("Simulated Premium Education Scanned Quality", 50f, 450f, paint)
+                    
+                    val outputStream = java.io.FileOutputStream(tempFile)
+                    if (file.format == FileFormat.PNG) {
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, outputStream)
+                    } else {
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, outputStream)
+                    }
+                    outputStream.flush()
+                    outputStream.close()
+                }
+                FileFormat.XLSX -> {
+                    val textContent = """
+                        Class Gradebook Excel Spreadsheet,Name,Exam Score,Grade,Borrowings
+                        John Doe,94,A,15
+                        Jane Smith,88,B+,12
+                        Alex Mercer,71,C,8
+                        Emily Davis,99,A+,22
+                        Average Grade,88,B+,14.25
+                    """.trimIndent()
+                    tempFile.writeText(textContent)
+                }
+                FileFormat.MP3, FileFormat.WAV -> {
+                    val byteArray = ByteArray(1024 * 100)
+                    tempFile.writeBytes(byteArray)
+                }
+                FileFormat.MP4, FileFormat.WEBM -> {
+                    val byteArray = ByteArray(1024 * 150)
+                    tempFile.writeBytes(byteArray)
+                }
+            }
+
+            uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                tempFile
+            )
+        }
+
+        val viewIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        val chooser = android.content.Intent.createChooser(viewIntent, "Open resource with:")
+        chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "Error opening external viewer: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
     }
 }
 
